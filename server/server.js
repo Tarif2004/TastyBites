@@ -145,18 +145,22 @@ app.use(errorHandler);
    VERCEL HANDLER
 ========================================= */
 
-const handler = async (req, res) => {
-  try {
-    await initializeDatabase();
-    return app(req, res);
-  } catch (error) {
-    console.error("Database connection failed:", error);
+if (process.env.VERCEL !== "1") {
+  const PORT = process.env.PORT || 5000;
 
-    return res.status(500).json({
-      success: false,
-      message: "Database connection failed",
+  connectDB()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(
+          `TastyBites 90 server running on http://localhost:${PORT}`
+        );
+      });
+    })
+    .catch((error) => {
+      console.error("Server startup failed:");
+      console.error(error.message);
+      process.exit(1);
     });
-  }
-};
+}
 
-export default handler;
+export default app;
