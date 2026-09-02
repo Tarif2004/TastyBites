@@ -19,6 +19,8 @@ dotenv.config();
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 /* =========================================
    CORS
 ========================================= */
@@ -104,6 +106,25 @@ const initializeDatabase = async () => {
   await dbConnectionPromise;
 };
 
+
+
+
+
+
+// Ensure MongoDB is connected before handling API requests
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    console.error("Database connection error:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Database connection failed",
+    });
+  }
+});
 /* =========================================
    ROUTES
 ========================================= */
