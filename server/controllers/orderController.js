@@ -249,18 +249,18 @@ export const createOrder = async (req, res) => {
       order,
     });
 
-  } catch (error) {
+} catch (error) {
+  console.error("========== CREATE ORDER ERROR ==========");
+  console.error("Message:", error.message);
+  console.error("Name:", error.name);
+  console.error("Stack:", error.stack);
+  console.error("========================================");
 
-    console.error(
-      "Create order error:",
-      error.message
-    );
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to create order",
-    });
-  }
+  return res.status(500).json({
+    success: false,
+    message: error.message || "Failed to create order",
+  });
+}
 };
 
 
