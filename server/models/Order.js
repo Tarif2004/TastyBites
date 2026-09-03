@@ -42,14 +42,17 @@ const locationSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+
     longitude: {
       type: Number,
       required: true,
     },
+
     accuracy: {
       type: Number,
       default: 0,
     },
+
     formattedAddress: {
       type: String,
       default: "",
@@ -72,6 +75,7 @@ const orderSchema = new mongoose.Schema(
     items: {
       type: [orderItemSchema],
       required: true,
+
       validate: {
         validator: (items) => items.length > 0,
         message: "Order must contain at least one item",
@@ -117,9 +121,12 @@ const orderSchema = new mongoose.Schema(
       },
     },
 
+    // Location is optional because the current checkout
+    // does not send latitude/longitude.
     location: {
       type: locationSchema,
-      required: true,
+      required: false,
+      default: undefined,
     },
 
     paymentMethod: {
@@ -147,4 +154,6 @@ const orderSchema = new mongoose.Schema(
   }
 );
 
-export default mongoose.model("Order", orderSchema);
+const Order = mongoose.model("Order", orderSchema);
+
+export default Order;
