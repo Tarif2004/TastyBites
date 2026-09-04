@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { googleAuth } from "../services/api";
 
-const GOOGLE_CLIENT_ID =
-  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-  "987654321000-exampleclientid.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+
+const isRealClientId = (id) => {
+  return id && id.trim().length > 10 && !id.includes("exampleclientid");
+};
 
 const GoogleLoginButton = ({
   onSuccess,
@@ -13,9 +15,11 @@ const GoogleLoginButton = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const googleBtnRef = useRef(null);
+  const hasValidClientId = isRealClientId(GOOGLE_CLIENT_ID);
 
   useEffect(() => {
-    // Load Google Identity Services Script
+    if (!hasValidClientId) return;
+
     const loadGsiScript = () => {
       if (document.getElementById("google-gsi-script")) return;
 
@@ -31,14 +35,14 @@ const GoogleLoginButton = ({
     };
 
     const initGoogleSignIn = () => {
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleCredentialResponse,
-          auto_select: false,
-        });
+      if (window.google?.accounts?.id && googleBtnRef.current) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: GOOGLE_CLIENT_ID,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+          });
 
-        if (googleBtnRef.current) {
           window.google.accounts.id.renderButton(googleBtnRef.current, {
             theme: "outline",
             size: "large",
@@ -46,6 +50,8 @@ const GoogleLoginButton = ({
             text: "continue_with",
             shape: "pill",
           });
+        } catch (err) {
+          console.warn("GIS initialization warning:", err.message);
         }
       }
     };
@@ -55,7 +61,7 @@ const GoogleLoginButton = ({
     } else {
       loadGsiScript();
     }
-  }, [roleTarget]);
+  }, [roleTarget, hasValidClientId]);
 
   const handleGoogleCredentialResponse = async (response) => {
     try {
@@ -66,7 +72,6 @@ const GoogleLoginButton = ({
         throw new Error("No Google credential received.");
       }
 
-      // Send credential token to backend for server-side verification and account linking
       const res = await googleAuth({
         credential: response.credential,
         targetRole: roleTarget,
@@ -92,8 +97,7 @@ const GoogleLoginButton = ({
       setLoading(true);
       setError("");
 
-      // Prompt or prompt popup fallback if GIS is blocked by adblockers or client_id is not set
-      if (window.google?.accounts?.id) {
+      if (hasValidClientId && window.google?.accounts?.id) {
         window.google.accounts.id.prompt();
         setLoading(false);
         return;
@@ -135,11 +139,10 @@ const GoogleLoginButton = ({
         </div>
       )}
 
-      {/* Render Google Identity Services Button Container */}
-      <div ref={googleBtnRef} className="w-full mb-1 min-h-[44px]"></div>
-
-      {/* Fallback button if Google SDK button fails to render */}
-      {(!window.google?.accounts?.id || !GOOGLE_CLIENT_ID) && (
+      {/* Render Google Identity Services Button Container if valid Client ID exists */}
+      {hasValidClientId ? (
+        <div ref={googleBtnRef} className="w-full mb-1 min-h-[44px]"></div>
+      ) : (
         <button
           type="button"
           onClick={handleManualFallbackClick}
