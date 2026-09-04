@@ -24,7 +24,6 @@ app.set("trust proxy", 1);
 /* =========================================
    CORS
 ========================================= */
-// import cors from "cors";
 
 const allowedOrigins = (
   process.env.CLIENT_ORIGIN || "http://localhost:5173"
@@ -51,7 +50,7 @@ app.use(
 
     credentials: true,
 
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 
     allowedHeaders: [
       "Content-Type",
@@ -123,11 +122,6 @@ const initializeDatabase = async () => {
   await dbConnectionPromise;
 };
 
-
-
-
-
-
 // Ensure MongoDB is connected before handling API requests
 app.use(async (req, res, next) => {
   try {
@@ -142,6 +136,7 @@ app.use(async (req, res, next) => {
     });
   }
 });
+
 /* =========================================
    ROUTES
 ========================================= */

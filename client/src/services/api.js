@@ -152,7 +152,7 @@ export const getPendingAdmins = () => apiRequest("/users/pending-admins");
 
 export const verifyAdmin = (id, status) =>
   apiRequest(`/users/verify-admin/${id}`, {
-    method: "PATCH",
+    method: "PUT",
     body: JSON.stringify({ status }),
   });
 

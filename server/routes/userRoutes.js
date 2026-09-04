@@ -19,7 +19,8 @@ router.get("/", protect, adminOnly, getUsers);
 /* Owner only: Get pending admin applications */
 router.get("/pending-admins", protect, ownerOnly, getPendingAdmins);
 
-/* Owner only: Approve/reject an admin application */
+/* Owner only: Approve/reject an admin application (supports PUT and PATCH) */
+router.put("/verify-admin/:id", protect, ownerOnly, verifyAdmin);
 router.patch("/verify-admin/:id", protect, ownerOnly, verifyAdmin);
 
 /* Admin or Owner: Delete a user */
