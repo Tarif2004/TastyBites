@@ -1,10 +1,9 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-
 import User from "../models/User.js";
 
 /* =========================================
-   GENERATE JWT
+   GENERATE JWT SESSION TOKEN
 ========================================= */
 
 const generateToken = (user) => {
@@ -26,7 +25,7 @@ const generateToken = (user) => {
 
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, phone, password, confirmPassword } = req.body;
+    const { name, email, phone, password, confirmPassword, isEmailVerified = false } = req.body;
 
     if (!name || !email || !password || !confirmPassword) {
       return res.status(400).json({
@@ -55,7 +54,7 @@ export const registerUser = async (req, res) => {
     if (existingUser) {
       return res.status(409).json({
         success: false,
-        message: "Email is already registered",
+        message: "Email is already registered. Please sign in instead.",
       });
     }
 
@@ -64,6 +63,7 @@ export const registerUser = async (req, res) => {
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
+      isEmailVerified: Boolean(isEmailVerified),
       phone: phone ? phone.trim() : "",
       isPhoneVerified: !!phone,
       password: hashedPassword,
@@ -80,6 +80,7 @@ export const registerUser = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        isEmailVerified: user.isEmailVerified,
         phone: user.phone,
         role: user.role,
       },
@@ -124,7 +125,6 @@ export const registerAdmin = async (req, res) => {
       });
     }
 
-    // Validate Math Captcha
     if (
       captchaAnswer === undefined ||
       parseInt(captchaAnswer, 10) !== parseInt(captchaExpected, 10)
@@ -135,7 +135,6 @@ export const registerAdmin = async (req, res) => {
       });
     }
 
-    // Validate Aadhaar (12 digits)
     const cleanAadhaar = aadhaarNumber.replace(/\s+/g, "");
     if (!/^\d{12}$/.test(cleanAadhaar)) {
       return res.status(400).json({
@@ -170,10 +169,10 @@ export const registerAdmin = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Admin account created with pending verification status
     const adminUser = await User.create({
       name: name.trim(),
       email: normalizedEmail,
+      isEmailVerified: true,
       phone: phone.trim(),
       isPhoneVerified: true,
       aadhaarNumber: cleanAadhaar,
@@ -198,7 +197,7 @@ export const registerAdmin = async (req, res) => {
 };
 
 /* =========================================
-   LOGIN
+   EMAIL/PASSWORD LOGIN
 ========================================= */
 
 export const loginUser = async (req, res) => {
@@ -257,6 +256,7 @@ export const loginUser = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        isEmailVerified: user.isEmailVerified,
         role: user.role,
         adminStatus: user.adminStatus,
       },
@@ -271,12 +271,32 @@ export const loginUser = async (req, res) => {
 };
 
 /* =========================================
-   GOOGLE / AUTH0 OAUTH LOGIN
+   GOOGLE OAUTH 2.0 AUTHENTICATION & ACCOUNT LINKING
+   POST /api/auth/google
 ========================================= */
 
 export const googleAuth = async (req, res) => {
   try {
-    const { email, name, googleId, picture, targetRole = "user" } = req.body;
+    const { credential, email: bodyEmail, name: bodyName, googleId: bodyGoogleId, targetRole = "user" } = req.body;
+
+    let email = bodyEmail;
+    let name = bodyName;
+    let googleId = bodyGoogleId;
+
+    // If Google Credential JWT token is provided by Google Identity Services SDK
+    if (credential) {
+      try {
+        // Decode Google JWT payload
+        const decodedPayload = jwt.decode(credential);
+        if (decodedPayload && decodedPayload.email) {
+          email = decodedPayload.email;
+          name = decodedPayload.name || decodedPayload.given_name || email.split("@")[0];
+          googleId = decodedPayload.sub || `google_${Date.now()}`;
+        }
+      } catch (tokenErr) {
+        console.warn("Google credential decode failed, falling back to body params:", tokenErr.message);
+      }
+    }
 
     if (!email) {
       return res.status(400).json({
@@ -287,23 +307,25 @@ export const googleAuth = async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
+    // Check if user already exists (Safe Account Linking)
     let user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
-      // Create new user account via Google
+      // User does not exist — Create new account via Google
       const randomPassword = await bcrypt.hash(
         Math.random().toString(36).slice(-10),
         10
       );
 
-      // If user selected admin login via google, place in pending
       const assignedRole = targetRole === "admin" ? "admin" : "user";
       const adminStatus = assignedRole === "admin" ? "pending" : "none";
 
       user = await User.create({
         name: name || normalizedEmail.split("@")[0],
         email: normalizedEmail,
+        isEmailVerified: true,
         password: randomPassword,
+        googleId: googleId || `google_${Date.now()}`,
         role: assignedRole,
         adminStatus,
         isPhoneVerified: false,
@@ -313,30 +335,48 @@ export const googleAuth = async (req, res) => {
         return res.status(403).json({
           success: false,
           message:
-            "Google Admin registration complete. Your account is pending Owner approval before you can sign in.",
+            "Google Admin registration submitted. Your account is pending Owner approval before you can sign in.",
         });
       }
     } else {
-      // Check Admin approval status if existing user is admin
+      // Existing User — Link Google ID and mark Email as Verified
+      let modified = false;
+
+      if (!user.googleId) {
+        user.googleId = googleId || `google_${Date.now()}`;
+        modified = true;
+      }
+
+      if (!user.isEmailVerified) {
+        user.isEmailVerified = true;
+        modified = true;
+      }
+
+      if (modified) {
+        await user.save();
+      }
+
+      // Check Admin approval status if user is an Admin
       if (user.role === "admin" && user.adminStatus !== "approved") {
         return res.status(403).json({
           success: false,
-          message:
-            "Your admin account is pending verification by the Owner.",
+          message: "Your admin account is pending verification by the Owner.",
         });
       }
     }
 
+    // Issue Application Session Token (JWT)
     const token = generateToken(user);
 
     return res.status(200).json({
       success: true,
-      message: "Google login successful",
+      message: "Google authentication successful",
       token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
+        isEmailVerified: user.isEmailVerified,
         role: user.role,
         adminStatus: user.adminStatus,
       },
@@ -351,7 +391,8 @@ export const googleAuth = async (req, res) => {
 };
 
 /* =========================================
-   GET CURRENT USER
+   GET CURRENT USER SESSION
+   GET /api/auth/me
 ========================================= */
 
 export const getCurrentUser = async (req, res) => {
@@ -361,6 +402,7 @@ export const getCurrentUser = async (req, res) => {
       id: req.user._id,
       name: req.user.name,
       email: req.user.email,
+      isEmailVerified: req.user.isEmailVerified,
       role: req.user.role,
       adminStatus: req.user.adminStatus,
     },

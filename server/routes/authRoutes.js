@@ -8,7 +8,13 @@ import {
   getCurrentUser,
 } from "../controllers/authController.js";
 
-import { sendOtp, verifyOtp } from "../controllers/otpController.js";
+import {
+  sendEmailOtpController,
+  verifyEmailOtpController,
+  sendOtp,
+  verifyOtp,
+} from "../controllers/otpController.js";
+
 import protect from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -24,6 +30,10 @@ router.post("/login", loginUser);
 
 /* Google / Auth0 Login */
 router.post("/google", googleAuth);
+
+/* Email OTP endpoints */
+router.post("/email-otp/send", sendEmailOtpController);
+router.post("/email-otp/verify", verifyEmailOtpController);
 
 /* Mobile OTP endpoints */
 router.post("/otp/send", sendOtp);

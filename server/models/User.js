@@ -14,6 +14,10 @@ const UserSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
     phone: {
       type: String,
       trim: true,
@@ -26,6 +30,11 @@ const UserSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
+    },
+    googleId: {
+      type: String,
+      trim: true,
+      default: "",
     },
     role: {
       type: String,

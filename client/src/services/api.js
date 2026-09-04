@@ -64,6 +64,20 @@ export const googleAuth = (payload) =>
     body: JSON.stringify(payload),
   });
 
+// Email OTP Endpoints
+export const sendEmailOtp = (email, purpose = "email_verification") =>
+  apiRequest("/auth/email-otp/send", {
+    method: "POST",
+    body: JSON.stringify({ email, purpose }),
+  });
+
+export const verifyEmailOtp = (email, otp, purpose = "email_verification") =>
+  apiRequest("/auth/email-otp/verify", {
+    method: "POST",
+    body: JSON.stringify({ email, otp, purpose }),
+  });
+
+// Mobile OTP Endpoints
 export const sendOtp = (phone, purpose = "user_verification") =>
   apiRequest("/auth/otp/send", {
     method: "POST",

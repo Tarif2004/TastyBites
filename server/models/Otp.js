@@ -2,20 +2,35 @@ import mongoose from "mongoose";
 
 const otpSchema = new mongoose.Schema(
   {
+    email: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      index: true,
+      default: "",
+    },
     phone: {
       type: String,
-      required: true,
-      index: true,
       trim: true,
+      index: true,
+      default: "",
     },
-    otp: {
+    otpHash: {
       type: String,
       required: true,
     },
     purpose: {
       type: String,
-      enum: ["user_verification", "admin_verification"],
-      default: "user_verification",
+      enum: ["email_verification", "user_verification", "admin_verification"],
+      default: "email_verification",
+    },
+    attempts: {
+      type: Number,
+      default: 0,
+    },
+    lastSentAt: {
+      type: Date,
+      default: Date.now,
     },
     expiresAt: {
       type: Date,
