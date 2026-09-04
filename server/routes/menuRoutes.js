@@ -9,46 +9,23 @@ import {
 } from "../controllers/menuController.js";
 
 import protect from "../middleware/authMiddleware.js";
-import adminOnly from "../middleware/adminMiddleware.js";
+import ownerOnly from "../middleware/ownerMiddleware.js";
 
 const router = express.Router();
 
-/*
-  PUBLIC
-*/
-
-/* GET /api/menu */
+/* Public: Get menu items */
 router.get("/", getMenuItems);
 
-/* GET /api/menu/:id */
+/* Public: Get single menu item */
 router.get("/:id", getMenuItem);
 
-/*
-  ADMIN ONLY
-*/
+/* Owner Only: Create menu item */
+router.post("/", protect, ownerOnly, createMenuItem);
 
-/* POST /api/menu */
-router.post(
-  "/",
-  protect,
-  adminOnly,
-  createMenuItem
-);
+/* Owner Only: Update menu item */
+router.put("/:id", protect, ownerOnly, updateMenuItem);
 
-/* PUT /api/menu/:id */
-router.put(
-  "/:id",
-  protect,
-  adminOnly,
-  updateMenuItem
-);
-
-/* DELETE /api/menu/:id */
-router.delete(
-  "/:id",
-  protect,
-  adminOnly,
-  deleteMenuItem
-);
+/* Owner Only: Delete menu item */
+router.delete("/:id", protect, ownerOnly, deleteMenuItem);
 
 export default router;

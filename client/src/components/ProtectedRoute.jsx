@@ -5,51 +5,22 @@ import { useAuth } from "../context/AuthContext";
   ProtectedRoute — guards pages that require authentication.
 
   Props:
-    adminOnly  boolean  (optional)  If true, only admin users can access.
+    adminOnly  boolean  (optional)  If true, admin or owner users can access.
 */
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  /*
-    Wait for authentication restoration
-    after browser refresh.
-  */
-
   if (loading) {
     return (
-      <div
-        className="
-          flex
-          min-h-screen
-          items-center
-          justify-center
-          bg-[#f7e7b4]
-        "
-      >
-        <div
-          className="
-            border-4
-            border-black
-            bg-[#f0b429]
-            px-8
-            py-4
-            text-2xl
-            font-black
-            uppercase
-            shadow-[6px_6px_0_#000]
-          "
-        >
-          Loading...
+      <div className="flex min-h-screen items-center justify-center bg-[#fafaf9]">
+        <div className="rounded-2xl border border-stone-200 bg-white px-8 py-4 text-sm font-black text-stone-900 shadow-sm animate-pulse">
+          Authenticating...
         </div>
       </div>
     );
   }
-
-  /*
-    User isn't authenticated — redirect to login.
-  */
 
   if (!user) {
     return (
@@ -63,11 +34,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     );
   }
 
-  /*
-    Admin-only route — redirect non-admins to home.
-  */
-
-  if (adminOnly && user.role !== "admin") {
+  if (adminOnly && user.role !== "admin" && user.role !== "owner") {
     return (
       <Navigate
         to="/"

@@ -8,7 +8,10 @@ import {
   updateMenuItem,
   deleteMenuItem,
   getUsers,
+  getPendingAdmins,
+  verifyAdmin,
   deleteUser,
+  getCurrentUser,
 } from "../services/api";
 import Footer from "../components/Footer";
 
@@ -46,46 +49,87 @@ const MENU_CATEGORIES = [
 ];
 
 /* =========================================
-   ADMIN DASHBOARD
+   ADMIN / OWNER DASHBOARD
 ========================================= */
 
 const AdminDashboard = () => {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [activeTab, setActiveTab] = useState("orders");
+  const [loadingUser, setLoadingUser] = useState(true);
 
-  const tabs = [
-    { id: "overview", label: "Overview", icon: "📊" },
-    { id: "orders", label: "Orders", icon: "🧾" },
-    { id: "menu", label: "Menu Items", icon: "🍔" },
-    { id: "users", label: "Customer Accounts", icon: "👥" },
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const data = await getCurrentUser();
+      if (data.user) {
+        setCurrentUser(data.user);
+        if (data.user.role === "owner") {
+          setActiveTab("overview");
+        } else {
+          setActiveTab("orders");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load dashboard user info:", err);
+    } finally {
+      setLoadingUser(false);
+    }
+  };
+
+  const isOwner = currentUser?.role === "owner";
+
+  const allTabs = [
+    { id: "overview", label: "Overview", icon: "📊", ownerOnly: true },
+    { id: "orders", label: "Orders & Live GPS", icon: "🧾", ownerOnly: false },
+    { id: "menu", label: "Menu Items", icon: "🍔", ownerOnly: true },
+    { id: "users", label: "Customer Accounts", icon: "👥", ownerOnly: false },
+    { id: "admin-approvals", label: "Admin Verification", icon: "🔐", ownerOnly: true },
   ];
+
+  const visibleTabs = allTabs.filter((t) => !t.ownerOnly || isOwner);
+
+  if (loadingUser) {
+    return <LoadingBox label="Initializing Command Portal..." />;
+  }
 
   return (
     <div className="min-h-screen bg-[#fafaf9] flex flex-col justify-between">
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 w-full">
-        
         {/* HEADER */}
         <div className="mb-8 rounded-3xl bg-stone-900 text-white p-6 sm:p-8 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <span className="text-xs font-bold uppercase tracking-widest text-amber-400">
-              Kitchen Command
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-widest text-amber-400">
+                {isOwner ? "👑 System Owner Console" : "🛠️ Admin Operations Console"}
+              </span>
+              {isOwner && (
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-stone-900 text-[10px] font-black uppercase">
+                  Full Authority
+                </span>
+              )}
+            </div>
             <h1 className="text-3xl sm:text-4xl font-black tracking-tight mt-1">
-              Admin & Operations
+              {isOwner ? "Owner Master Dashboard" : "Kitchen & Order Controls"}
             </h1>
             <p className="text-xs sm:text-sm text-stone-400 mt-1">
-              Real-time restaurant metrics, order status controls, and menu catalog.
+              {isOwner
+                ? "Full authorities: Menu dish management, Admin verification, Revenue analytics, and Customer control."
+                : "Admin authorities: Restricted to handling customer orders and managing user accounts."}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-            <span className="text-xs font-bold text-stone-300">Store Live & Accepting Orders</span>
+            <span className="text-xs font-bold text-stone-300">Logged in as {currentUser?.name} ({currentUser?.role})</span>
           </div>
         </div>
 
         {/* TABS */}
         <div className="mb-8 flex gap-2 overflow-x-auto border-b border-stone-200 pb-3 scrollbar-none">
-          {tabs.map((tab) => (
+          {visibleTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -102,11 +146,11 @@ const AdminDashboard = () => {
         </div>
 
         {/* TAB CONTENT */}
-        {activeTab === "overview" && <OverviewTab />}
+        {activeTab === "overview" && isOwner && <OverviewTab />}
         {activeTab === "orders" && <OrdersTab />}
-        {activeTab === "menu" && <MenuTab />}
-        {activeTab === "users" && <UsersTab />}
-
+        {activeTab === "menu" && isOwner && <MenuTab />}
+        {activeTab === "users" && <UsersTab isOwner={isOwner} />}
+        {activeTab === "admin-approvals" && isOwner && <AdminApprovalsTab />}
       </main>
 
       <Footer />
@@ -115,7 +159,7 @@ const AdminDashboard = () => {
 };
 
 /* =========================================
-   TAB 1 — OVERVIEW
+   TAB 1 — OVERVIEW (OWNER ONLY)
 ========================================= */
 
 const OverviewTab = () => {
@@ -142,7 +186,6 @@ const OverviewTab = () => {
 
   return (
     <div className="space-y-10">
-      {/* Stat Cards */}
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => (
           <div
@@ -164,7 +207,6 @@ const OverviewTab = () => {
         ))}
       </div>
 
-      {/* Recent Orders Table */}
       {stats.recentOrders?.length > 0 && (
         <div className="rounded-3xl bg-white border border-stone-200/80 p-6 shadow-sm">
           <h2 className="text-lg font-bold text-stone-900 tracking-tight mb-4">
@@ -210,7 +252,7 @@ const OverviewTab = () => {
 };
 
 /* =========================================
-   TAB 2 — ORDERS MANAGEMENT
+   TAB 2 — ORDERS & LIVE GPS LOCATION
 ========================================= */
 
 const OrdersTab = () => {
@@ -261,7 +303,6 @@ const OrdersTab = () => {
 
   return (
     <div className="space-y-6">
-      {/* Filter Chips */}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
         {["All", ...ORDER_STATUSES].map((s) => (
           <button
@@ -286,7 +327,7 @@ const OrdersTab = () => {
             <thead>
               <tr className="border-b border-stone-200 text-xs font-bold uppercase tracking-wider text-stone-400">
                 <th className="pb-3 font-bold">Order ID</th>
-                <th className="pb-3 font-bold">Customer Details</th>
+                <th className="pb-3 font-bold">Customer & Live Location</th>
                 <th className="pb-3 font-bold">Items Summary</th>
                 <th className="pb-3 font-bold">Total</th>
                 <th className="pb-3 font-bold">Update Status</th>
@@ -301,8 +342,22 @@ const OrdersTab = () => {
                   </td>
                   <td className="py-4">
                     <p className="font-bold text-stone-900">{order.customer?.name}</p>
-                    <p className="text-xs text-stone-500">{order.customer?.phone}</p>
-                    <p className="text-xs text-stone-400 max-w-xs truncate">{order.customer?.address}</p>
+                    <p className="text-xs text-stone-500">📞 {order.customer?.phone}</p>
+                    <p className="text-xs text-stone-400 max-w-xs">{order.customer?.address}</p>
+
+                    {/* Live GPS Maps Link */}
+                    {order.location?.latitude && (
+                      <div className="mt-2 text-xs">
+                        <a
+                          href={`https://www.google.com/maps?q=${order.location.latitude},${order.location.longitude}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 font-bold text-rose-600 hover:underline bg-rose-50 px-2 py-1 rounded-md border border-rose-200"
+                        >
+                          📍 Live GPS Navigation ↗
+                        </a>
+                      </div>
+                    )}
                   </td>
                   <td className="py-4">
                     <ul className="text-xs text-stone-600 space-y-0.5">
@@ -347,7 +402,7 @@ const OrdersTab = () => {
 };
 
 /* =========================================
-   TAB 3 — MENU MANAGEMENT
+   TAB 3 — MENU MANAGEMENT (OWNER ONLY)
 ========================================= */
 
 const EMPTY_FORM = {
@@ -456,7 +511,7 @@ const MenuTab = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-xs font-bold uppercase tracking-wider text-stone-500">
-          {items.length} Active Catalog Dishes
+          {items.length} Active Catalog Dishes (Owner Management Only)
         </p>
 
         <button
@@ -530,7 +585,6 @@ const MenuTab = () => {
         </table>
       </div>
 
-      {/* Modal */}
       {modalMode && (
         <MenuItemModal
           mode={modalMode}
@@ -546,7 +600,7 @@ const MenuTab = () => {
 };
 
 /* =========================================
-   MENU MODAL
+   MENU ITEM MODAL
 ========================================= */
 
 const MenuItemModal = ({ mode, form, setForm, onSave, onClose, saving }) => {
@@ -674,7 +728,7 @@ const MenuItemModal = ({ mode, form, setForm, onSave, onClose, saving }) => {
    TAB 4 — USER MANAGEMENT
 ========================================= */
 
-const UsersTab = () => {
+const UsersTab = ({ isOwner }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -720,7 +774,7 @@ const UsersTab = () => {
           <thead>
             <tr className="border-b border-stone-200 text-xs font-bold uppercase tracking-wider text-stone-400">
               <th className="pb-3 font-bold">Diner Name</th>
-              <th className="pb-3 font-bold">Email</th>
+              <th className="pb-3 font-bold">Contact Details</th>
               <th className="pb-3 font-bold">System Role</th>
               <th className="pb-3 font-bold">Joined On</th>
               <th className="pb-3 font-bold">Actions</th>
@@ -730,9 +784,12 @@ const UsersTab = () => {
             {users.map((user) => (
               <tr key={user._id} className="hover:bg-stone-50/60 transition">
                 <td className="py-3.5 font-bold text-stone-900">{user.name}</td>
-                <td className="py-3.5 text-stone-600">{user.email}</td>
+                <td className="py-3.5 text-xs text-stone-600">
+                  <p>{user.email}</p>
+                  {user.phone && <p className="text-stone-400">📞 {user.phone}</p>}
+                </td>
                 <td className="py-3.5">
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${user.role === "admin" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-700"}`}>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${user.role === "owner" ? "bg-amber-400 text-stone-900" : user.role === "admin" ? "bg-stone-900 text-white" : "bg-stone-100 text-stone-700"}`}>
                     {user.role}
                   </span>
                 </td>
@@ -740,7 +797,7 @@ const UsersTab = () => {
                   {new Date(user.createdAt).toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" })}
                 </td>
                 <td className="py-3.5">
-                  {user.role !== "admin" ? (
+                  {user.role === "user" || (isOwner && user.role !== "owner") ? (
                     <button
                       onClick={() => handleDelete(user._id)}
                       disabled={deletingId === user._id}
@@ -749,7 +806,7 @@ const UsersTab = () => {
                       {deletingId === user._id ? "..." : "Remove"}
                     </button>
                   ) : (
-                    <span className="text-xs font-bold text-stone-400">Admin Protected</span>
+                    <span className="text-xs font-bold text-stone-400">Protected</span>
                   )}
                 </td>
               </tr>
@@ -757,6 +814,113 @@ const UsersTab = () => {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+};
+
+/* =========================================
+   TAB 5 — OWNER ADMIN APPROVALS (OWNER ONLY)
+========================================= */
+
+const AdminApprovalsTab = () => {
+  const [pendingAdmins, setPendingAdmins] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [actionId, setActionId] = useState(null);
+
+  const loadPendingAdmins = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const data = await getPendingAdmins();
+      setPendingAdmins(Array.isArray(data.pendingAdmins) ? data.pendingAdmins : []);
+    } catch (err) {
+      setError(err.message || "Failed to load pending admin verification applications");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPendingAdmins();
+  }, [loadPendingAdmins]);
+
+  const handleVerify = async (id, status) => {
+    setActionId(id);
+    try {
+      await verifyAdmin(id, status);
+      setPendingAdmins((prev) => prev.filter((a) => a._id !== id));
+      alert(`Admin application ${status} successfully.`);
+    } catch (err) {
+      alert(`Failed to update admin application: ${err.message}`);
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  if (loading) return <LoadingBox label="Loading pending admin applications..." />;
+  if (error) return <ErrorBox message={error} onRetry={loadPendingAdmins} />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold uppercase tracking-wider text-amber-800">
+          🔐 {pendingAdmins.length} Pending Admin Applications Awaiting Verification
+        </p>
+      </div>
+
+      {pendingAdmins.length === 0 ? (
+        <EmptyBox label="No pending admin applications. All applicants verified." />
+      ) : (
+        <div className="rounded-3xl bg-white border border-stone-200/80 p-6 shadow-sm overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-stone-200 text-xs font-bold uppercase tracking-wider text-stone-400">
+                <th className="pb-3 font-bold">Applicant Name</th>
+                <th className="pb-3 font-bold">Contact Details</th>
+                <th className="pb-3 font-bold">Aadhaar Card No.</th>
+                <th className="pb-3 font-bold">Applied Date</th>
+                <th className="pb-3 font-bold">Owner Decision</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-stone-100">
+              {pendingAdmins.map((admin) => (
+                <tr key={admin._id} className="hover:bg-stone-50/60 transition">
+                  <td className="py-4 font-bold text-stone-900">{admin.name}</td>
+                  <td className="py-4 text-xs text-stone-600">
+                    <p className="font-semibold text-stone-800">{admin.email}</p>
+                    <p className="text-stone-500">📞 {admin.phone}</p>
+                  </td>
+                  <td className="py-4 font-mono text-stone-800 font-bold text-xs bg-amber-50/60 px-2 py-1 rounded border border-amber-200 w-max">
+                    {admin.aadhaarNumber || "Not Provided"}
+                  </td>
+                  <td className="py-4 text-xs text-stone-500">
+                    {new Date(admin.createdAt).toLocaleDateString("en-IN", { month: "short", day: "2-digit", year: "numeric" })}
+                  </td>
+                  <td className="py-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleVerify(admin._id, "approved")}
+                        disabled={actionId === admin._id}
+                        className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 text-xs font-bold transition shadow-xs disabled:opacity-50"
+                      >
+                        ✓ Approve Admin
+                      </button>
+                      <button
+                        onClick={() => handleVerify(admin._id, "rejected")}
+                        disabled={actionId === admin._id}
+                        className="rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3.5 py-1.5 text-xs font-bold transition disabled:opacity-50"
+                      >
+                        ✕ Reject
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };

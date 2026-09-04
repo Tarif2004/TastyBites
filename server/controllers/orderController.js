@@ -3,12 +3,6 @@ import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import MenuItem from "../models/MenuItem.js";
 
-
-/* =========================================
-   CREATE ORDER
-   POST /api/orders
-========================================= */
-
 /* =========================================
    CREATE ORDER
    POST /api/orders
@@ -19,6 +13,7 @@ export const createOrder = async (req, res) => {
     const {
       items,
       customer,
+      location,
       paymentMethod = "COD",
     } = req.body;
 
@@ -40,9 +35,8 @@ export const createOrder = async (req, res) => {
       });
     }
 
-
     /* ================================
-       VALIDATE CUSTOMER
+       VALIDATE CUSTOMER & LOCATION
     ================================= */
 
     if (
@@ -53,11 +47,20 @@ export const createOrder = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message:
-          "Customer name, phone and address are required",
+        message: "Customer name, phone and address are required",
       });
     }
 
+    if (
+      !location ||
+      location.latitude === undefined ||
+      location.longitude === undefined
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Exact live GPS location is required to place an order",
+      });
+    }
 
     /* ================================
        VALIDATE PAYMENT
@@ -70,13 +73,11 @@ export const createOrder = async (req, res) => {
       });
     }
 
-
     /* ================================
        VALIDATE ITEMS
     ================================= */
 
     for (const item of items) {
-
       if (!mongoose.isValidObjectId(item.menuItem)) {
         return res.status(400).json({
           success: false,
@@ -93,12 +94,10 @@ export const createOrder = async (req, res) => {
       ) {
         return res.status(400).json({
           success: false,
-          message:
-            "Quantity must be an integer between 1 and 50",
+          message: "Quantity must be an integer between 1 and 50",
         });
       }
     }
-
 
     /* ================================
        MERGE DUPLICATE ITEMS
@@ -107,88 +106,62 @@ export const createOrder = async (req, res) => {
     const quantityMap = new Map();
 
     for (const item of items) {
-
       const id = item.menuItem;
       const quantity = Number(item.quantity);
 
-      quantityMap.set(
-        id,
-        (quantityMap.get(id) || 0) + quantity
-      );
+      quantityMap.set(id, (quantityMap.get(id) || 0) + quantity);
     }
-
 
     /* ================================
        FETCH MENU ITEMS
     ================================= */
 
-    const menuItemIds = [
-      ...quantityMap.keys(),
-    ];
+    const menuItemIds = [...quantityMap.keys()];
 
     const menuItems = await MenuItem.find({
-      _id: {
-        $in: menuItemIds,
-      },
+      _id: { $in: menuItemIds },
       availability: true,
     })
       .select("_id name price image")
       .lean();
 
-
     /* ================================
        CHECK AVAILABILITY
     ================================= */
 
-    if (
-      menuItems.length !== menuItemIds.length
-    ) {
+    if (menuItems.length !== menuItemIds.length) {
       return res.status(400).json({
         success: false,
-        message:
-          "One or more menu items are unavailable",
+        message: "One or more menu items are unavailable",
       });
     }
-
 
     /* ================================
        CREATE O(1) MENU MAP
     ================================= */
 
     const menuMap = new Map(
-      menuItems.map((item) => [
-        item._id.toString(),
-        item,
-      ])
+      menuItems.map((item) => [item._id.toString(), item])
     );
-
 
     /* ================================
        BUILD ORDER ITEMS
     ================================= */
 
     const orderItems = [];
-
     let subtotal = 0;
 
-    for (const [
-      menuItemId,
-      quantity,
-    ] of quantityMap) {
-
-      const menuItem =
-        menuMap.get(menuItemId);
+    for (const [menuItemId, quantity] of quantityMap) {
+      const menuItem = menuMap.get(menuItemId);
 
       if (!menuItem) {
         return res.status(400).json({
           success: false,
-          message:
-            "One or more menu items are unavailable",
+          message: "One or more menu items are unavailable",
         });
       }
 
-      const itemTotal =
-        menuItem.price * quantity;
+      const itemTotal = menuItem.price * quantity;
 
       orderItems.push({
         menuItem: menuItem._id,
@@ -201,16 +174,12 @@ export const createOrder = async (req, res) => {
       subtotal += itemTotal;
     }
 
-
     /* ================================
        DELIVERY FEE
     ================================= */
 
     const deliveryFee = 40;
-
-    const total =
-      subtotal + deliveryFee;
-
+    const total = subtotal + deliveryFee;
 
     /* ================================
        CREATE ORDER
@@ -218,47 +187,38 @@ export const createOrder = async (req, res) => {
 
     const order = await Order.create({
       user: req.user._id,
-
       items: orderItems,
-
       subtotal,
-
       deliveryFee,
-
       total,
-
       customer: {
         name: customer.name.trim(),
         phone: customer.phone.trim(),
         address: customer.address.trim(),
       },
-
+      location: {
+        latitude: Number(location.latitude),
+        longitude: Number(location.longitude),
+        accuracy: Number(location.accuracy || 0),
+        formattedAddress: location.formattedAddress || "",
+      },
       paymentMethod,
-
       status: "Pending",
     });
-
-
-    /* ================================
-       RESPONSE
-    ================================= */
 
     return res.status(201).json({
       success: true,
       message: "Order placed successfully",
       order,
     });
-
-} catch (error) {
-  console.error("Create order error:", error);
-
-  return res.status(500).json({
-    success: false,
-    message: "Failed to create order",
-  });
-}
+  } catch (error) {
+    console.error("Create order error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create order",
+    });
+  }
 };
-
 
 /* =========================================
    GET MY ORDERS
@@ -267,10 +227,7 @@ export const createOrder = async (req, res) => {
 
 export const getMyOrders = async (req, res) => {
   try {
-
-    const orders = await Order.find({
-      user: req.user._id,
-    })
+    const orders = await Order.find({ user: req.user._id })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -279,36 +236,25 @@ export const getMyOrders = async (req, res) => {
       count: orders.length,
       orders,
     });
-
   } catch (error) {
-
-    console.error(
-      "Get my orders error:",
-      error.message
-    );
-
+    console.error("Get my orders error:", error.message);
     return res.status(500).json({
       success: false,
       message: "Failed to fetch orders",
     });
   }
 };
-
 
 /* =========================================
    GET ALL ORDERS
    GET /api/orders
-   ADMIN
+   ADMIN / OWNER
 ========================================= */
 
 export const getAllOrders = async (req, res) => {
   try {
-
     const orders = await Order.find({})
-      .populate(
-        "user",
-        "_id name email"
-      )
+      .populate("user", "_id name email phone")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -317,21 +263,14 @@ export const getAllOrders = async (req, res) => {
       count: orders.length,
       orders,
     });
-
   } catch (error) {
-
-    console.error(
-      "Get all orders error:",
-      error.message
-    );
-
+    console.error("Get all orders error:", error.message);
     return res.status(500).json({
       success: false,
       message: "Failed to fetch orders",
     });
   }
 };
-
 
 /* =========================================
    GET SINGLE ORDER
@@ -340,7 +279,6 @@ export const getAllOrders = async (req, res) => {
 
 export const getOrderById = async (req, res) => {
   try {
-
     const { id } = req.params;
 
     if (!mongoose.isValidObjectId(id)) {
@@ -351,10 +289,7 @@ export const getOrderById = async (req, res) => {
     }
 
     const order = await Order.findById(id)
-      .populate(
-        "user",
-        "_id name email"
-      )
+      .populate("user", "_id name email phone")
       .lean();
 
     if (!order) {
@@ -364,25 +299,16 @@ export const getOrderById = async (req, res) => {
       });
     }
 
-    /*
-      Normal users can only see
-      their own orders.
+    const isCustomerOwner =
+      order.user?._id?.toString() === req.user._id.toString();
 
-      Admins can see any order.
-    */
+    const isStaff =
+      req.user.role === "admin" || req.user.role === "owner";
 
-    const isOwner =
-      order.user?._id?.toString() ===
-      req.user._id.toString();
-
-    const isAdmin =
-      req.user.role === "admin";
-
-    if (!isOwner && !isAdmin) {
+    if (!isCustomerOwner && !isStaff) {
       return res.status(403).json({
         success: false,
-        message:
-          "You are not allowed to view this order",
+        message: "You are not allowed to view this order",
       });
     }
 
@@ -390,14 +316,8 @@ export const getOrderById = async (req, res) => {
       success: true,
       order,
     });
-
   } catch (error) {
-
-    console.error(
-      "Get order error:",
-      error.message
-    );
-
+    console.error("Get order error:", error.message);
     return res.status(500).json({
       success: false,
       message: "Failed to fetch order",
@@ -405,32 +325,16 @@ export const getOrderById = async (req, res) => {
   }
 };
 
-
 /* =========================================
    UPDATE ORDER STATUS
    PUT /api/orders/:id/status
-   ADMIN
+   ADMIN / OWNER
 ========================================= */
 
-/* =========================================
-   UPDATE ORDER STATUS
-   PUT /api/orders/:id/status
-   ADMIN
-========================================= */
-
-export const updateOrderStatus = async (
-  req,
-  res
-) => {
+export const updateOrderStatus = async (req, res) => {
   try {
-
     const { id } = req.params;
     const { status } = req.body;
-
-
-    /* ================================
-       VALIDATE ID
-    ================================= */
 
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({
@@ -438,11 +342,6 @@ export const updateOrderStatus = async (
         message: "Invalid order ID",
       });
     }
-
-
-    /* ================================
-       ALLOWED STATUSES
-    ================================= */
 
     const allowedStatuses = [
       "Pending",
@@ -453,7 +352,6 @@ export const updateOrderStatus = async (
       "Cancelled",
     ];
 
-
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -461,32 +359,13 @@ export const updateOrderStatus = async (
       });
     }
 
-
-    /* ================================
-       UPDATE
-    ================================= */
-
-    const order =
-      await Order.findByIdAndUpdate(
-        id,
-        {
-          status,
-        },
-        {
-          new: true,
-          runValidators: true,
-        }
-      )
-        .populate(
-          "user",
-          "_id name email"
-        )
-        .lean();
-
-
-    /* ================================
-       NOT FOUND
-    ================================= */
+    const order = await Order.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true, runValidators: true }
+    )
+      .populate("user", "_id name email")
+      .lean();
 
     if (!order) {
       return res.status(404).json({
@@ -495,25 +374,16 @@ export const updateOrderStatus = async (
       });
     }
 
-
     return res.status(200).json({
       success: true,
-      message:
-        "Order status updated successfully",
+      message: "Order status updated successfully",
       order,
     });
-
   } catch (error) {
-
-    console.error(
-      "Update order status error:",
-      error.message
-    );
-
+    console.error("Update order status error:", error.message);
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to update order status",
+      message: "Failed to update order status",
     });
   }
 };

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Footer from "../components/Footer";
+import GoogleLoginButton from "../components/GoogleLoginButton";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -59,6 +60,21 @@ const Login = () => {
             </div>
           )}
 
+          <div className="mb-6">
+            <GoogleLoginButton
+              onSuccess={() => {
+                navigate(from, { replace: true });
+                window.location.reload();
+              }}
+            />
+          </div>
+
+          <div className="relative flex py-2 items-center mb-4">
+            <div className="flex-grow border-t border-stone-200"></div>
+            <span className="flex-shrink mx-3 text-stone-400 text-xs font-semibold uppercase">Or sign in with email</span>
+            <div className="flex-grow border-t border-stone-200"></div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5">
@@ -100,9 +116,15 @@ const Login = () => {
           <p className="mt-6 text-center text-xs text-stone-500">
             Don't have an account yet?{" "}
             <Link to="/signup" className="font-bold text-rose-600 hover:underline">
-              Create one now
+              Create customer account
             </Link>
           </p>
+
+          <div className="mt-4 pt-4 border-t border-stone-100 text-center">
+            <Link to="/admin/register" className="text-xs font-bold text-amber-800 hover:underline">
+              🔐 Register as Staff / Admin (Aadhaar & Owner Verification) &rarr;
+            </Link>
+          </div>
 
         </div>
       </main>

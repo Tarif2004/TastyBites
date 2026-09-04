@@ -16,13 +16,9 @@ export const apiRequest = async (endpoint, options = {}) => {
     ...(options.headers || {}),
   };
 
-  // Attach JWT token to every protected request
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
-
-  console.log("API REQUEST:", endpoint);
-  console.log("TOKEN EXISTS:", Boolean(token));
 
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
@@ -41,7 +37,7 @@ export const apiRequest = async (endpoint, options = {}) => {
 };
 
 // ===============================
-// AUTH
+// AUTH & OTP
 // ===============================
 
 export const registerUser = (userData) =>
@@ -50,14 +46,37 @@ export const registerUser = (userData) =>
     body: JSON.stringify(userData),
   });
 
+export const registerAdmin = (adminData) =>
+  apiRequest("/auth/register-admin", {
+    method: "POST",
+    body: JSON.stringify(adminData),
+  });
+
 export const loginUser = (userData) =>
   apiRequest("/auth/login", {
     method: "POST",
     body: JSON.stringify(userData),
   });
 
-export const getCurrentUser = () =>
-  apiRequest("/auth/me");
+export const googleAuth = (payload) =>
+  apiRequest("/auth/google", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+export const sendOtp = (phone, purpose = "user_verification") =>
+  apiRequest("/auth/otp/send", {
+    method: "POST",
+    body: JSON.stringify({ phone, purpose }),
+  });
+
+export const verifyOtp = (phone, otp, purpose = "user_verification") =>
+  apiRequest("/auth/otp/verify", {
+    method: "POST",
+    body: JSON.stringify({ phone, otp, purpose }),
+  });
+
+export const getCurrentUser = () => apiRequest("/auth/me");
 
 // ===============================
 // MENU
@@ -66,8 +85,24 @@ export const getCurrentUser = () =>
 export const getMenuItems = (query = "") =>
   apiRequest(`/menu-items${query ? `?${query}` : ""}`);
 
-export const getMenuItem = (id) =>
-  apiRequest(`/menu-items/${id}`);
+export const getMenuItem = (id) => apiRequest(`/menu-items/${id}`);
+
+export const createMenuItem = (itemData) =>
+  apiRequest("/menu-items", {
+    method: "POST",
+    body: JSON.stringify(itemData),
+  });
+
+export const updateMenuItem = (id, itemData) =>
+  apiRequest(`/menu-items/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(itemData),
+  });
+
+export const deleteMenuItem = (id) =>
+  apiRequest(`/menu-items/${id}`, {
+    method: "DELETE",
+  });
 
 // ===============================
 // ORDERS
@@ -79,25 +114,17 @@ export const createOrder = (orderData) =>
     body: JSON.stringify(orderData),
   });
 
-export const getMyOrders = () =>
-  apiRequest("/orders/my-orders");
+export const getMyOrders = () => apiRequest("/orders/my-orders");
 
-export const getOrderById = (id) =>
-  apiRequest(`/orders/${id}`);
+export const getOrderById = (id) => apiRequest(`/orders/${id}`);
 
 // ===============================
-// ADMIN - DASHBOARD
+// ADMIN / OWNER - DASHBOARD & USERS
 // ===============================
 
-export const getDashboardStats = () =>
-  apiRequest("/admin/dashboard");
+export const getDashboardStats = () => apiRequest("/admin/dashboard");
 
-// ===============================
-// ADMIN - ORDERS
-// ===============================
-
-export const getAllOrders = () =>
-  apiRequest("/orders");
+export const getAllOrders = () => apiRequest("/orders");
 
 export const updateOrderStatus = (id, status) =>
   apiRequest(`/orders/${id}/status`, {
@@ -105,12 +132,15 @@ export const updateOrderStatus = (id, status) =>
     body: JSON.stringify({ status }),
   });
 
-// ===============================
-// ADMIN - USERS
-// ===============================
+export const getUsers = () => apiRequest("/users");
 
-export const getUsers = () =>
-  apiRequest("/users");
+export const getPendingAdmins = () => apiRequest("/users/pending-admins");
+
+export const verifyAdmin = (id, status) =>
+  apiRequest(`/users/verify-admin/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
 
 export const deleteUser = (id) =>
   apiRequest(`/users/${id}`, {

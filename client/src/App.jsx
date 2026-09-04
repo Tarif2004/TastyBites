@@ -15,6 +15,7 @@ import Orders from "./pages/Orders";
 import MyOrders from "./pages/MyOrders";
 import OrderDetails from "./pages/OrderDetails";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminRegister from "./pages/AdminRegister";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
@@ -27,59 +28,24 @@ const App = () => {
       <Navbar />
 
       <Routes>
-
         {/* =========================
             PUBLIC ROUTES
         ========================= */}
 
-        <Route
-          path="/"
-          element={<Home />}
-        />
-
-        <Route
-          path="/menu"
-          element={<Menu />}
-        />
-
-        <Route
-          path="/cart"
-          element={<Cart />}
-        />
-
-        <Route
-          path="/login"
-          element={<Login />}
-        />
-
-        <Route
-          path="/register"
-          element={<Register />}
-        />
-
-        <Route
-          path="/signup"
-          element={<Signup />}
-        />
-
-        <Route
-          path="/order-success/:orderId"
-          element={<OrderSuccess />}
-        />
-
+        <Route path="/" element={<Home />} />
+        <Route path="/menu" element={<Menu />} />
+        <Route path="/cart" element={<Cart />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/admin/register" element={<AdminRegister />} />
+        <Route path="/order-success/:orderId" element={<OrderSuccess />} />
 
         {/* =========================
             PROTECTED ROUTES
         ========================= */}
 
-        <Route
-          path="/checkout"
-          element={
-            <ProtectedRoute>
-              <Checkout />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/checkout" element={<Checkout />} />
 
         <Route
           path="/my-orders"
@@ -99,7 +65,6 @@ const App = () => {
           }
         />
 
-        {/* Existing Orders page */}
         <Route
           path="/orders"
           element={
@@ -110,7 +75,7 @@ const App = () => {
         />
 
         {/* =========================
-            ADMIN
+            ADMIN / OWNER
         ========================= */}
 
         <Route
@@ -121,7 +86,6 @@ const App = () => {
             </ProtectedRoute>
           }
         />
-
       </Routes>
     </BrowserRouter>
   );
