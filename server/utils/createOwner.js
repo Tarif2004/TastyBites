@@ -10,11 +10,12 @@ const createOwner = async () => {
   try {
     await connectDB();
 
-    const ownerEmail = process.env.OWNER_EMAIL || "owner@tastybites.com";
-    const ownerPassword = process.env.OWNER_PASSWORD || "Owner@123456";
+    const ownerEmail = process.env.OWNER_EMAIL || "owner@tastybites90.com";
+    const ownerPassword = process.env.OWNER_PASSWORD || "OwnerTastyBites2026!";
     const ownerName = process.env.OWNER_NAME || "TastyBites Owner";
 
     const normalizedEmail = ownerEmail.toLowerCase().trim();
+    const hashedPassword = await bcrypt.hash(ownerPassword, 10);
 
     const existingUser = await User.findOne({
       email: normalizedEmail,
@@ -23,12 +24,12 @@ const createOwner = async () => {
     if (existingUser) {
       existingUser.role = "owner";
       existingUser.adminStatus = "approved";
+      existingUser.password = hashedPassword;
+      existingUser.isEmailVerified = true;
       await existingUser.save();
-      console.log(`Updated existing user (${normalizedEmail}) to role: 'owner'.`);
+      console.log(`Updated existing user (${normalizedEmail}) to role: 'owner' with specified password.`);
       process.exit(0);
     }
-
-    const hashedPassword = await bcrypt.hash(ownerPassword, 10);
 
     await User.create({
       name: ownerName,
@@ -36,6 +37,7 @@ const createOwner = async () => {
       password: hashedPassword,
       role: "owner",
       adminStatus: "approved",
+      isEmailVerified: true,
       isPhoneVerified: true,
     });
 

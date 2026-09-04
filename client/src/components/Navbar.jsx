@@ -15,6 +15,8 @@ const Navbar = () => {
         : "text-stone-600 hover:text-stone-900 hover:bg-stone-100/70"
     }`;
 
+  const isStaffOrOwner = user?.role === "admin" || user?.role === "owner";
+
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-stone-200/70 transition-all">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
@@ -47,11 +49,11 @@ const Navbar = () => {
               Orders
             </NavLink>
           )}
-          {user?.role === "admin" && (
+          {isStaffOrOwner && (
             <NavLink to="/admin" className={navClass}>
               <span className="inline-flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                Admin
+                {user.role === "owner" ? "👑 Owner Console" : "🛠️ Admin"}
               </span>
             </NavLink>
           )}
@@ -77,7 +79,7 @@ const Navbar = () => {
           ) : (
             <div className="flex items-center gap-3">
               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-stone-100 text-stone-700 border border-stone-200">
-                Hi, {user.name?.split(" ")[0]}
+                Hi, {user.name?.split(" ")[0]} ({user.role})
               </span>
               <button
                 onClick={logout}
@@ -144,8 +146,10 @@ const Navbar = () => {
             {user && (
               <MobileLink to="/my-orders" onClick={() => setMobileOpen(false)}>My Orders</MobileLink>
             )}
-            {user?.role === "admin" && (
-              <MobileLink to="/admin" onClick={() => setMobileOpen(false)}>Admin Panel</MobileLink>
+            {isStaffOrOwner && (
+              <MobileLink to="/admin" onClick={() => setMobileOpen(false)}>
+                {user.role === "owner" ? "👑 Owner Console" : "🛠️ Admin Panel"}
+              </MobileLink>
             )}
 
             <div className="pt-3 mt-2 border-t border-stone-100 flex flex-col gap-2">
@@ -163,7 +167,7 @@ const Navbar = () => {
               ) : (
                 <div className="flex items-center justify-between pt-1 px-3">
                   <span className="text-xs font-bold text-stone-500">
-                    Logged in as <strong className="text-stone-800">{user.name}</strong>
+                    Logged in as <strong className="text-stone-800">{user.name}</strong> ({user.role})
                   </span>
                   <button
                     onClick={() => {
