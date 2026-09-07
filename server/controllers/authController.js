@@ -12,7 +12,7 @@ const generateToken = (user) => {
       id: user._id,
       role: user.role,
     },
-    process.env.JWT_SECRET || "fallback_secret_key",
+    process.env.JWT_SECRET || "tastybites_fallback_secret_do_not_use_in_prod",
     {
       expiresIn: "7d",
     }

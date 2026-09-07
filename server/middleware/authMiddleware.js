@@ -30,11 +30,16 @@ const protect = async (req, res, next) => {
       });
     }
 
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret || jwtSecret === "YOUR_LONG_RANDOM_SECRET") {
+      console.error("[AUTH] CRITICAL: JWT_SECRET env var is not set or is still the placeholder. Set it in Vercel Environment Variables.");
+    }
+
     /* Verify JWT */
 
     const decoded = jwt.verify(
       token,
-      process.env.JWT_SECRET
+      jwtSecret || "tastybites_fallback_secret_do_not_use_in_prod"
     );
 
     /*
