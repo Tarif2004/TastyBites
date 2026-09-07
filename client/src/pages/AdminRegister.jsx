@@ -15,6 +15,7 @@ const AdminRegister = () => {
   });
 
   const [otp, setOtp] = useState("");
+  const [demoPhoneOtp, setDemoPhoneOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
 
@@ -52,7 +53,7 @@ const AdminRegister = () => {
       const data = await sendOtp(formData.phone, "admin_verification");
       setOtpSent(true);
       if (data.demoOtp) {
-        alert(`[Dev Mode] Admin Verification OTP: ${data.demoOtp}`);
+        setDemoPhoneOtp(data.demoOtp);
       }
     } catch (err) {
       // 429 = OTP already sent and cooldown active (e.g. after page refresh)
@@ -241,6 +242,24 @@ const AdminRegister = () => {
                 </span>
               )}
             </div>
+
+            {demoPhoneOtp && !isPhoneVerified && (
+              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                <span className="text-xs text-amber-800 font-bold block mb-0.5">
+                  Free Smart OTP (Zero Cost):
+                </span>
+                <span className="font-mono text-xl font-black text-rose-600 tracking-[4px]">
+                  {demoPhoneOtp}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setOtp(demoPhoneOtp)}
+                  className="block mx-auto mt-1 px-2.5 py-0.5 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded-md text-[11px] font-extrabold transition"
+                >
+                  Click to Auto-fill Code
+                </button>
+              </div>
+            )}
 
             {otpSent && !isPhoneVerified && (
               <div className="flex gap-2 pt-2">

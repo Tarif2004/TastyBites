@@ -20,10 +20,12 @@ const Signup = () => {
 
   // Step 2 - email OTP
   const [emailOtp, setEmailOtp] = useState("");
+  const [demoEmailOtp, setDemoEmailOtp] = useState("");
 
   // Step 3 - phone OTP
   const [phone, setPhone] = useState("");
   const [phoneOtp, setPhoneOtp] = useState("");
+  const [demoPhoneOtp, setDemoPhoneOtp] = useState("");
   const [phoneSent, setPhoneSent] = useState(false);
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
 
@@ -51,7 +53,9 @@ const Signup = () => {
       setLoading(true);
       const res = await sendEmailOtp(email, "email_verification");
       setSuccess(`Verification code sent to ${email}`);
-      if (res.demoOtp) alert(`[Dev Mode] Email OTP: ${res.demoOtp}`);
+      if (res.demoOtp) {
+        setDemoEmailOtp(res.demoOtp);
+      }
       setCooldown(res.cooldownSeconds || 60);
       setStep(2);
     } catch (err) {
@@ -69,7 +73,9 @@ const Signup = () => {
       setLoading(true);
       const res = await sendEmailOtp(email, "email_verification");
       setSuccess("A fresh verification code was sent to your email.");
-      if (res.demoOtp) alert(`[Dev Mode] New Email OTP: ${res.demoOtp}`);
+      if (res.demoOtp) {
+        setDemoEmailOtp(res.demoOtp);
+      }
       setCooldown(res.cooldownSeconds || 60);
     } catch (err) {
       setError(err.message || "Failed to resend OTP.");
@@ -105,7 +111,9 @@ const Signup = () => {
       const res = await sendOtp(phone, "user_verification");
       setPhoneSent(true);
       setSuccess(res.message || "OTP sent to your mobile number.");
-      if (res.demoOtp) alert(`[Dev Mode] Phone OTP: ${res.demoOtp}`);
+      if (res.demoOtp) {
+        setDemoPhoneOtp(res.demoOtp);
+      }
       setCooldown(res.cooldownSeconds || 60);
     } catch (err) {
       // 429 means an OTP was already sent and cooldown is still active.
@@ -249,6 +257,24 @@ const Signup = () => {
                 <button type="button" onClick={() => { setStep(1); setEmailOtp(""); setError(""); setSuccess(""); }}
                   className="text-xs text-rose-600 font-bold hover:underline mt-1">Change email address</button>
               </div>
+              {demoEmailOtp && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-center">
+                  <span className="text-xs text-amber-800 font-bold block mb-1">
+                    Free / Demo Email Verification Code:
+                  </span>
+                  <div className="font-mono text-2xl font-black text-rose-600 tracking-[6px] my-1">
+                    {demoEmailOtp}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEmailOtp(demoEmailOtp)}
+                    className="inline-block mt-1 px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded-lg text-xs font-extrabold transition cursor-pointer"
+                  >
+                    Click to Auto-fill Code
+                  </button>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5">Enter 6-Digit Email Code</label>
                 <input type="text" maxLength={6} required value={emailOtp}
@@ -303,6 +329,24 @@ const Signup = () => {
                   <span className="text-xs text-emerald-700 font-bold">
                     Mobile Verified: +91 {phone.slice(0, 2)}XXXXXX{phone.slice(-2)}
                   </span>
+                </div>
+              )}
+
+              {demoPhoneOtp && !isPhoneVerified && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-center shadow-sm">
+                  <span className="text-xs text-amber-800 font-bold block mb-1">
+                    Free Smart OTP (Zero Cost):
+                  </span>
+                  <div className="font-mono text-2xl font-black text-rose-600 tracking-[6px] my-1">
+                    {demoPhoneOtp}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPhoneOtp(demoPhoneOtp)}
+                    className="inline-block mt-1 px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded-lg text-xs font-extrabold transition cursor-pointer"
+                  >
+                    Click to Auto-fill Code
+                  </button>
                 </div>
               )}
 
