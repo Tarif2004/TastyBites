@@ -165,6 +165,46 @@ export const verifyEmailOtpController = async (req, res) => {
 };
 
 /* =========================================
+   SEND SMS VIA FAST2SMS
+   Internal helper — not exported
+========================================= */
+const sendSmsViaFast2Sms = async (phone, otp) => {
+  const apiKey = process.env.FAST2SMS_API_KEY;
+
+  if (!apiKey || apiKey === "your_fast2sms_api_key_here") {
+    // Dev mode — no real SMS
+    console.log(`[SMS-DEV] OTP for ${phone}: ${otp}`);
+    return { success: true, demoMode: true };
+  }
+
+  const url = "https://www.fast2sms.com/dev/bulkV2";
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      authorization: apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      route: "otp",
+      variables_values: otp,
+      numbers: phone,
+      flash: 0,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || data.return === false) {
+    console.error("[Fast2SMS] Error:", data);
+    throw new Error(data?.message?.[0] || "SMS delivery failed");
+  }
+
+  console.log(`[Fast2SMS] OTP sent to ${phone} — request_id: ${data.request_id}`);
+  return { success: true, demoMode: false, requestId: data.request_id };
+};
+
+/* =========================================
    GENERATE & SEND PHONE OTP
    POST /api/auth/otp/send
 ========================================= */
@@ -180,26 +220,56 @@ export const sendOtp = async (req, res) => {
     }
 
     const cleanPhone = phone.trim();
+
+    // Resend cooldown: prevent spamming
+    const existing = await Otp.findOne({
+      phone: cleanPhone,
+      purpose,
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (existing) {
+      const timeSinceLastSent =
+        (Date.now() - new Date(existing.lastSentAt).getTime()) / 1000;
+      if (timeSinceLastSent < RESEND_COOLDOWN_SECONDS) {
+        const remaining = Math.ceil(RESEND_COOLDOWN_SECONDS - timeSinceLastSent);
+        return res.status(429).json({
+          success: false,
+          message: `Please wait ${remaining} seconds before requesting a new OTP.`,
+          cooldownRemainingSeconds: remaining,
+        });
+      }
+    }
+
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
     const otpHash = await bcrypt.hash(generatedOtp, 10);
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 
+    // Clear old OTPs for this phone + purpose
     await Otp.deleteMany({ phone: cleanPhone, purpose });
 
     await Otp.create({
       phone: cleanPhone,
       otpHash,
       purpose,
+      attempts: 0,
+      lastSentAt: new Date(),
       expiresAt,
     });
 
-    console.log(`[SMS-GATEWAY] Verification OTP for ${cleanPhone}: ${generatedOtp}`);
+    // Send real SMS or fall back to dev-mode console log
+    const smsResult = await sendSmsViaFast2Sms(cleanPhone, generatedOtp);
+
+    const maskedPhone = `+91 ${cleanPhone.slice(0, 2)}XXXXXX${cleanPhone.slice(-2)}`;
 
     return res.status(200).json({
       success: true,
-      message: `Verification code sent to +91 ${cleanPhone.slice(0, 2)}******${cleanPhone.slice(-2)}`,
-      demoOtp: generatedOtp,
+      message: `Verification code sent to ${maskedPhone}`,
+      demoMode: smsResult.demoMode,
+      // Only expose OTP in dev mode (no real API key set)
+      ...(smsResult.demoMode ? { demoOtp: generatedOtp } : {}),
       expiresInSeconds: 300,
+      cooldownSeconds: RESEND_COOLDOWN_SECONDS,
     });
   } catch (error) {
     console.error("Send Phone OTP error:", error);
