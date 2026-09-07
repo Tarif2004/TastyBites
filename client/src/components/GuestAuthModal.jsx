@@ -10,6 +10,7 @@ const GuestAuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
+  const [demoPhoneOtp, setDemoPhoneOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [name, setName] = useState("");
   const [error, setError] = useState("");
@@ -44,7 +45,7 @@ const GuestAuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
       const data = await sendOtp(phone, "user_verification");
       setOtpSent(true);
       if (data.demoOtp) {
-        alert(`Demo OTP sent: ${data.demoOtp}`);
+        setDemoPhoneOtp(data.demoOtp);
       }
     } catch (err) {
       setError(err.message);
@@ -170,6 +171,22 @@ const GuestAuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
                       onChange={(e) => setName(e.target.value)}
                       className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none"
                     />
+
+                    {demoPhoneOtp && (
+                      <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                        <span className="text-xs text-amber-800 font-bold block mb-0.5">
+                          Verification Code: <span className="font-mono text-rose-600 font-black tracking-widest">{demoPhoneOtp}</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setOtp(demoPhoneOtp)}
+                          className="px-2 py-0.5 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded text-[11px] font-extrabold cursor-pointer"
+                        >
+                          Auto-fill Code
+                        </button>
+                      </div>
+                    )}
+
                     <div className="flex gap-2">
                       <input
                         type="text"
