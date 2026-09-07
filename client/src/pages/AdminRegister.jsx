@@ -52,10 +52,17 @@ const AdminRegister = () => {
       const data = await sendOtp(formData.phone, "admin_verification");
       setOtpSent(true);
       if (data.demoOtp) {
-        alert(`Demo Admin Verification OTP: ${data.demoOtp}`);
+        alert(`[Dev Mode] Admin Verification OTP: ${data.demoOtp}`);
       }
     } catch (err) {
-      setError(err.message);
+      // 429 = OTP already sent and cooldown active (e.g. after page refresh)
+      // Show the OTP input anyway so user can enter the code they already received
+      if (err.status === 429) {
+        setOtpSent(true);
+        setError(`OTP already sent. Please enter it below, or wait ${err.data?.cooldownRemainingSeconds || 60}s to resend.`);
+      } else {
+        setError(err.message || "Failed to send OTP. Please try again.");
+      }
     } finally {
       setLoading(false);
     }

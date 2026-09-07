@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { sendEmailOtp, verifyEmailOtp, sendOtp, verifyOtp } from "../services/api";
@@ -108,7 +108,16 @@ const Signup = () => {
       if (res.demoOtp) alert(`[Dev Mode] Phone OTP: ${res.demoOtp}`);
       setCooldown(res.cooldownSeconds || 60);
     } catch (err) {
-      setError(err.message || "Failed to send SMS.");
+      // 429 means an OTP was already sent and cooldown is still active.
+      // Show the OTP input so the user can enter the code they already received.
+      if (err.status === 429) {
+        setPhoneSent(true);
+        const remaining = err.data?.cooldownRemainingSeconds || 60;
+        setCooldown(remaining);
+        setError(`An OTP was already sent to this number. Please enter it below, or wait ${remaining}s to resend.`);
+      } else {
+        setError(err.message || "Failed to send SMS. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
