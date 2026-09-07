@@ -186,10 +186,11 @@ const sendSmsViaFast2Sms = async (phone, otp) => {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      route: "otp",
-      variables_values: otp,
+      route: "q",
+      message: `Your TastyBites verification code is ${otp}. Valid for 5 minutes. Do not share this code with anyone.`,
       numbers: phone,
       flash: 0,
+      language: "english",
     }),
   });
 

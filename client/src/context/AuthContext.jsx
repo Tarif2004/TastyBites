@@ -108,7 +108,8 @@ export const AuthProvider = ({ children }) => {
   name,
   email,
   password,
-  confirmPassword
+  confirmPassword,
+  phone
 ) => {
 
   const data = await registerUser({
@@ -116,6 +117,9 @@ export const AuthProvider = ({ children }) => {
     email,
     password,
     confirmPassword,
+    phone: phone || "",
+    isEmailVerified: true,
+    isPhoneVerified: !!phone,
   });
 
   return data;
