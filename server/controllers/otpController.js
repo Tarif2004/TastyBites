@@ -165,44 +165,69 @@ export const verifyEmailOtpController = async (req, res) => {
 };
 
 /* =========================================
-   SEND SMS VIA FAST2SMS
-   Internal helper — not exported
+   SMS DELIVERY — Tri-layer fallback system
+   1. Twilio  (TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN + TWILIO_PHONE)
+   2. Fast2SMS (FAST2SMS_API_KEY) via axios
+   3. Dev mode console log
 ========================================= */
-const sendSmsViaFast2Sms = async (phone, otp) => {
-  const apiKey = process.env.FAST2SMS_API_KEY;
+const sendSmsOtp = async (phone, otp) => {
+  // ── Layer 1: Twilio ──────────────────────────────────────────
+  const twilioSid   = process.env.TWILIO_ACCOUNT_SID;
+  const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+  const twilioPhone = process.env.TWILIO_PHONE;
 
-  if (!apiKey || apiKey === "your_fast2sms_api_key_here") {
-    // Dev mode — no real SMS
-    console.log(`[SMS-DEV] OTP for ${phone}: ${otp}`);
-    return { success: true, demoMode: true };
+  if (twilioSid && twilioToken && twilioPhone) {
+    const twilio = (await import("twilio")).default;
+    const client = twilio(twilioSid, twilioToken);
+    const msg = await client.messages.create({
+      body: `Your TastyBites OTP is ${otp}. Valid for 5 minutes. Do not share it with anyone.`,
+      from: twilioPhone,
+      to: `+91${phone}`,
+    });
+    console.log(`[Twilio] OTP sent to +91${phone} — SID: ${msg.sid}`);
+    return { success: true, provider: "twilio", demoMode: false };
   }
 
-  const url = "https://www.fast2sms.com/dev/bulkV2";
+  // ── Layer 2: Fast2SMS via axios ──────────────────────────────
+  const fast2smsKey = process.env.FAST2SMS_API_KEY;
+  const isPlaceholder =
+    !fast2smsKey ||
+    fast2smsKey === "your_fast2sms_api_key_here" ||
+    fast2smsKey.length < 10;
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      authorization: apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      route: "q",
-      message: `Your TastyBites verification code is ${otp}. Valid for 5 minutes. Do not share this code with anyone.`,
-      numbers: phone,
-      flash: 0,
-      language: "english",
-    }),
-  });
+  if (!isPlaceholder) {
+    const axios = (await import("axios")).default;
+    const { data } = await axios.post(
+      "https://www.fast2sms.com/dev/bulkV2",
+      {
+        route: "q",
+        message: `Your TastyBites OTP is ${otp}. Valid for 5 minutes.`,
+        numbers: phone,
+        flash: 0,
+        language: "english",
+      },
+      {
+        headers: {
+          authorization: fast2smsKey,
+          "Content-Type": "application/json",
+        },
+        timeout: 8000,
+      }
+    );
 
-  const data = await response.json();
+    if (data.return === false) {
+      const errMsg = Array.isArray(data.message) ? data.message.join(", ") : String(data.message);
+      console.error(`[Fast2SMS] Error for ${phone}:`, errMsg);
+      throw new Error(`Fast2SMS error: ${errMsg}`);
+    }
 
-  if (!response.ok || data.return === false) {
-    console.error("[Fast2SMS] Error:", data);
-    throw new Error(data?.message?.[0] || "SMS delivery failed");
+    console.log(`[Fast2SMS] OTP sent to ${phone} — request_id: ${data.request_id}`);
+    return { success: true, provider: "fast2sms", demoMode: false };
   }
 
-  console.log(`[Fast2SMS] OTP sent to ${phone} — request_id: ${data.request_id}`);
-  return { success: true, demoMode: false, requestId: data.request_id };
+  // ── Layer 3: Dev mode ────────────────────────────────────────
+  console.log(`[SMS-DEV] No SMS provider configured. OTP for +91${phone}: ${otp}`);
+  return { success: true, provider: "dev", demoMode: true };
 };
 
 /* =========================================
@@ -258,25 +283,25 @@ export const sendOtp = async (req, res) => {
       expiresAt,
     });
 
-    // Send real SMS or fall back to dev-mode console log
-    const smsResult = await sendSmsViaFast2Sms(cleanPhone, generatedOtp);
+    // Send SMS
+    const smsResult = await sendSmsOtp(cleanPhone, generatedOtp);
 
     const maskedPhone = `+91 ${cleanPhone.slice(0, 2)}XXXXXX${cleanPhone.slice(-2)}`;
 
     return res.status(200).json({
       success: true,
       message: `Verification code sent to ${maskedPhone}`,
+      provider: smsResult.provider,
       demoMode: smsResult.demoMode,
-      // Only expose OTP in dev mode (no real API key set)
       ...(smsResult.demoMode ? { demoOtp: generatedOtp } : {}),
       expiresInSeconds: 300,
       cooldownSeconds: RESEND_COOLDOWN_SECONDS,
     });
   } catch (error) {
-    console.error("Send Phone OTP error:", error);
+    console.error("Send Phone OTP error:", error.message || error);
     return res.status(500).json({
       success: false,
-      message: "Failed to send verification code. Please try again.",
+      message: `Failed to send OTP: ${error.message || "Unknown server error"}`,
     });
   }
 };
