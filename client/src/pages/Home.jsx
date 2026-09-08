@@ -188,8 +188,35 @@ const Home = () => {
         </div>
       </section>
 
+      {/* DINE IN CTA SECTION */}
+      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500/10 via-rose-500/10 to-stone-100 border border-amber-200/80 p-8 sm:p-12 shadow-sm">
+          <div className="grid md:grid-cols-12 gap-8 items-center">
+            <div className="md:col-span-8 text-left">
+              <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 border border-amber-300 text-amber-900 px-3.5 py-1 text-xs font-black uppercase tracking-wider mb-3">
+                <span>🍽️</span>
+                <span>Dine In With Us</span>
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight">
+                Grab a table. Enjoy the vibe.
+              </h2>
+              <p className="mt-2 text-sm sm:text-base text-stone-600 max-w-xl leading-relaxed">
+                Experience TastyBites 90 in person. Reserve your booth in advance with live seating availability for solo diners, couples, or family groups up to 10 people.
+              </p>
+            </div>
+            <div className="md:col-span-4 flex flex-col sm:flex-row md:flex-col justify-center md:items-end gap-3">
+              <Link to="/dine-in" className="w-full sm:w-auto">
+                <RetroButton variant="primary" className="w-full sm:w-auto px-8 py-4 text-base shadow-lg shadow-rose-600/20">
+                  Book A Table 🍽️
+                </RetroButton>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* VALUE BANNER */}
-      <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-stone-900 to-stone-950 px-6 py-16 sm:px-12 sm:py-20 text-white shadow-xl">
           <div className="relative z-10 max-w-2xl">
             <span className="inline-block rounded-full bg-rose-600 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-white mb-4">

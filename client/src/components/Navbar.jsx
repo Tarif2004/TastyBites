@@ -44,9 +44,17 @@ const Navbar = () => {
           <NavLink to="/menu" className={navClass}>
             Menu
           </NavLink>
+          <NavLink to="/dine-in" className={navClass}>
+            🍽️ Dine-In
+          </NavLink>
           {user && (
             <NavLink to="/my-orders" className={navClass}>
               Orders
+            </NavLink>
+          )}
+          {user && (
+            <NavLink to="/my-reservations" className={navClass}>
+              Reservations
             </NavLink>
           )}
           {isStaffOrOwner && (
@@ -143,8 +151,12 @@ const Navbar = () => {
           <div className="flex flex-col gap-2">
             <MobileLink to="/" onClick={() => setMobileOpen(false)}>Home</MobileLink>
             <MobileLink to="/menu" onClick={() => setMobileOpen(false)}>Menu</MobileLink>
+            <MobileLink to="/dine-in" onClick={() => setMobileOpen(false)}>🍽️ Dine-In Table</MobileLink>
             {user && (
               <MobileLink to="/my-orders" onClick={() => setMobileOpen(false)}>My Orders</MobileLink>
+            )}
+            {user && (
+              <MobileLink to="/my-reservations" onClick={() => setMobileOpen(false)}>My Reservations</MobileLink>
             )}
             {isStaffOrOwner && (
               <MobileLink to="/admin" onClick={() => setMobileOpen(false)}>

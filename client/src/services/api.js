@@ -161,3 +161,57 @@ export const deleteUser = (id) =>
   apiRequest(`/users/${id}`, {
     method: "DELETE",
   });
+
+// ===============================
+// DINE-IN RESERVATIONS (CUSTOMER)
+// ===============================
+
+export const getDineInSettings = () => apiRequest("/dine-in/settings");
+
+export const getDineInAvailability = (date) =>
+  apiRequest(`/dine-in/availability?date=${encodeURIComponent(date)}`);
+
+export const createDineInReservation = (reservationData) =>
+  apiRequest("/dine-in/reservations", {
+    method: "POST",
+    body: JSON.stringify(reservationData),
+  });
+
+export const getMyDineInReservations = () =>
+  apiRequest("/dine-in/my-reservations");
+
+export const getDineInReservationById = (id) =>
+  apiRequest(`/dine-in/reservations/${id}`);
+
+export const cancelDineInReservation = (id) =>
+  apiRequest(`/dine-in/reservations/${id}/cancel`, {
+    method: "PATCH",
+  });
+
+// ===============================
+// DINE-IN (ADMIN / OWNER)
+// ===============================
+
+export const getAdminDineInSettings = () =>
+  apiRequest("/admin/dine-in/settings");
+
+export const updateAdminDineInSettings = (settingsData) =>
+  apiRequest("/admin/dine-in/settings", {
+    method: "PUT",
+    body: JSON.stringify(settingsData),
+  });
+
+export const getAdminDineInReservations = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.date) query.append("date", params.date);
+  if (params.status) query.append("status", params.status);
+  if (params.search) query.append("search", params.search);
+  const qStr = query.toString();
+  return apiRequest(`/admin/dine-in/reservations${qStr ? `?${qStr}` : ""}`);
+};
+
+export const updateAdminDineInReservationStatus = (id, status) =>
+  apiRequest(`/admin/dine-in/reservations/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });

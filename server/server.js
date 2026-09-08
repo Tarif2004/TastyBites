@@ -12,6 +12,8 @@ import menuRoutes from "./routes/menuRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
+import dineInRoutes from "./routes/dineInRoutes.js";
+import adminDineInRoutes from "./routes/adminDineInRoutes.js";
 
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 
@@ -148,6 +150,8 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/menu-items", menuRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/dine-in", dineInRoutes);
+app.use("/api/admin/dine-in", adminDineInRoutes);
 
 /* =========================================
    BASIC ROUTES

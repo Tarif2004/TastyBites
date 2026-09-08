@@ -19,6 +19,8 @@ import AdminRegister from "./pages/AdminRegister";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
+import DineIn from "./pages/DineIn";
+import MyReservations from "./pages/MyReservations";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -39,6 +41,7 @@ const App = () => {
         <Route path="/register" element={<Register />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/admin/register" element={<AdminRegister />} />
+        <Route path="/dine-in" element={<DineIn />} />
         <Route path="/order-success/:orderId" element={<OrderSuccess />} />
 
         {/* =========================
@@ -52,6 +55,15 @@ const App = () => {
           element={
             <ProtectedRoute>
               <MyOrders />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/my-reservations"
+          element={
+            <ProtectedRoute>
+              <MyReservations />
             </ProtectedRoute>
           }
         />

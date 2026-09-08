@@ -30,14 +30,28 @@ const MyOrders = () => {
       <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 w-full">
         
         {/* PAGE HEADER */}
-        <div className="mb-10 border-b border-stone-200/80 pb-6">
-          <span className="text-xs font-bold uppercase tracking-wider text-rose-600">Account</span>
-          <h1 className="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight mt-1">
-            Order History & Tracking
-          </h1>
-          <p className="mt-1 text-sm text-stone-500">
-            View live status updates or review previous gourmet meals.
-          </p>
+        <div className="mb-6 border-b border-stone-200/80 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-rose-600">Account</span>
+            <h1 className="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight mt-1">
+              Order History & Tracking
+            </h1>
+            <p className="mt-1 text-sm text-stone-500">
+              View live status updates or review previous gourmet meals.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="px-4 py-2 text-xs font-black rounded-full bg-rose-600 text-white shadow-sm">
+              🍔 Food Orders
+            </span>
+            <Link
+              to="/my-reservations"
+              className="px-4 py-2 text-xs font-bold rounded-full border border-stone-200 bg-white text-stone-700 hover:bg-stone-100 transition"
+            >
+              🍽️ Table Reservations
+            </Link>
+          </div>
         </div>
 
         {/* LOADING */}

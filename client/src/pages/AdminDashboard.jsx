@@ -12,6 +12,10 @@ import {
   verifyAdmin,
   deleteUser,
   getCurrentUser,
+  getAdminDineInSettings,
+  updateAdminDineInSettings,
+  getAdminDineInReservations,
+  updateAdminDineInReservationStatus,
 } from "../services/api";
 import Footer from "../components/Footer";
 
@@ -84,6 +88,8 @@ const AdminDashboard = () => {
   const allTabs = [
     { id: "overview", label: "Overview", icon: "📊", ownerOnly: true },
     { id: "orders", label: "Orders & Live GPS", icon: "🧾", ownerOnly: false },
+    { id: "dine-in-bookings", label: "Dine-In Bookings", icon: "🍽️", ownerOnly: false },
+    { id: "dine-in-settings", label: "Dine-In Settings", icon: "⚙️", ownerOnly: false },
     { id: "menu", label: "Menu Items", icon: "🍔", ownerOnly: true },
     { id: "users", label: "Customer Accounts", icon: "👥", ownerOnly: false },
     { id: "admin-approvals", label: "Admin Verification", icon: "🔐", ownerOnly: true },
@@ -148,6 +154,8 @@ const AdminDashboard = () => {
         {/* TAB CONTENT */}
         {activeTab === "overview" && isOwner && <OverviewTab />}
         {activeTab === "orders" && <OrdersTab />}
+        {activeTab === "dine-in-bookings" && <DineInBookingsTab />}
+        {activeTab === "dine-in-settings" && <DineInSettingsTab />}
         {activeTab === "menu" && isOwner && <MenuTab />}
         {activeTab === "users" && <UsersTab isOwner={isOwner} />}
         {activeTab === "admin-approvals" && isOwner && <AdminApprovalsTab />}
@@ -921,6 +929,549 @@ const AdminApprovalsTab = () => {
           </table>
         </div>
       )}
+    </div>
+  );
+};
+
+/* =========================================
+   TAB — DINE-IN BOOKINGS (ADMIN & OWNER)
+========================================= */
+
+const DINE_IN_STATUS_CONFIG = {
+  confirmed: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  completed: "bg-sky-50 text-sky-700 border-sky-200",
+  cancelled: "bg-rose-50 text-rose-700 border-rose-200",
+  pending: "bg-amber-50 text-amber-700 border-amber-200",
+};
+
+const DineInBookingsTab = () => {
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [reservations, setReservations] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [actionLoading, setActionLoading] = useState(null);
+
+  const fetchReservations = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const params = {};
+      if (selectedDate) params.date = selectedDate;
+      if (selectedStatus && selectedStatus !== "all") params.status = selectedStatus;
+      if (searchTerm.trim()) params.search = searchTerm.trim();
+
+      const data = await getAdminDineInReservations(params);
+      setReservations(data.reservations || []);
+      setStats(data.stats || null);
+    } catch (err) {
+      console.error("Failed to load dine-in reservations:", err);
+      setError(err.message || "Unable to fetch reservations.");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedDate, selectedStatus, searchTerm]);
+
+  useEffect(() => {
+    fetchReservations();
+  }, [fetchReservations]);
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      setActionLoading(id);
+      await updateAdminDineInReservationStatus(id, newStatus);
+      await fetchReservations();
+    } catch (err) {
+      alert(err.message || "Failed to update reservation status.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* STATS BAR */}
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="rounded-2xl border border-stone-200 bg-white p-4 text-center">
+            <span className="text-[10px] font-black uppercase tracking-wider text-stone-400 block">
+              Today's Bookings
+            </span>
+            <span className="text-2xl font-black text-stone-900 mt-1 block">
+              {stats.totalToday}
+            </span>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white p-4 text-center">
+            <span className="text-[10px] font-black uppercase tracking-wider text-stone-400 block">
+              Guests Today
+            </span>
+            <span className="text-2xl font-black text-amber-600 mt-1 block">
+              {stats.guestsToday}
+            </span>
+          </div>
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 text-center">
+            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">
+              Confirmed
+            </span>
+            <span className="text-2xl font-black text-emerald-800 mt-1 block">
+              {stats.confirmedToday}
+            </span>
+          </div>
+          <div className="rounded-2xl border border-sky-200 bg-sky-50/50 p-4 text-center">
+            <span className="text-[10px] font-black uppercase tracking-wider text-sky-700 block">
+              Completed
+            </span>
+            <span className="text-2xl font-black text-sky-800 mt-1 block">
+              {stats.completedToday}
+            </span>
+          </div>
+          <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-4 text-center col-span-2 sm:col-span-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 block">
+              Cancelled
+            </span>
+            <span className="text-2xl font-black text-rose-800 mt-1 block">
+              {stats.cancelledToday}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* FILTER CONTROLS */}
+      <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm space-y-4">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          
+          {/* Quick Date Chips */}
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+            <button
+              type="button"
+              onClick={() => setSelectedDate(todayStr)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition ${
+                selectedDate === todayStr
+                  ? "bg-rose-600 text-white shadow-sm"
+                  : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+              }`}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                setSelectedDate(tomorrow.toISOString().split("T")[0]);
+              }}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition ${
+                selectedDate && selectedDate !== todayStr
+                  ? "bg-rose-600 text-white shadow-sm"
+                  : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+              }`}
+            >
+              Tomorrow
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedDate("")}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition ${
+                selectedDate === ""
+                  ? "bg-rose-600 text-white shadow-sm"
+                  : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+              }`}
+            >
+              All Dates
+            </button>
+
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-3 py-1 text-xs font-bold rounded-xl border border-stone-200 bg-stone-50 focus:bg-white outline-none"
+            />
+          </div>
+
+          {/* Status and Search */}
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="px-3 py-1.5 text-xs font-bold rounded-xl border border-stone-200 bg-stone-50 focus:bg-white outline-none"
+            >
+              <option value="all">All Statuses</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="pending">Pending</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+
+            <input
+              type="text"
+              placeholder="Search by name, phone, code..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="flex-1 md:w-60 px-3 py-1.5 text-xs font-semibold rounded-xl border border-stone-200 bg-stone-50 focus:bg-white outline-none"
+            />
+
+            <button
+              type="button"
+              onClick={fetchReservations}
+              className="px-4 py-1.5 text-xs font-bold rounded-xl bg-stone-900 text-white hover:bg-stone-800 transition"
+            >
+              Refresh
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* RESERVATIONS TABLE */}
+      {loading ? (
+        <LoadingBox label="Loading Dine-In table bookings..." />
+      ) : error ? (
+        <ErrorBox message={error} onRetry={fetchReservations} />
+      ) : reservations.length === 0 ? (
+        <EmptyBox label="No reservations found matching your criteria." />
+      ) : (
+        <div className="rounded-3xl border border-stone-200 bg-white overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 uppercase tracking-wider font-extrabold">
+                <tr>
+                  <th className="py-3.5 px-4">Pass Code</th>
+                  <th className="py-3.5 px-4">Date & Time</th>
+                  <th className="py-3.5 px-4">Guest Details</th>
+                  <th className="py-3.5 px-4">Party Size</th>
+                  <th className="py-3.5 px-4">Notes</th>
+                  <th className="py-3.5 px-4 text-right">Status Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {reservations.map((r) => {
+                  const statusBadgeClass =
+                    DINE_IN_STATUS_CONFIG[r.status] || "bg-stone-100 text-stone-700";
+
+                  return (
+                    <tr key={r._id} className="hover:bg-stone-50/70 transition">
+                      {/* Pass Code */}
+                      <td className="py-3.5 px-4 font-mono font-black text-stone-900">
+                        {r.reservationCode}
+                      </td>
+
+                      {/* Date & Time */}
+                      <td className="py-3.5 px-4">
+                        <span className="font-bold text-stone-900 block">
+                          📅 {r.date}
+                        </span>
+                        <span className="text-rose-600 font-extrabold text-[11px]">
+                          🕐 {r.displayTime || r.time}
+                        </span>
+                      </td>
+
+                      {/* Guest Details */}
+                      <td className="py-3.5 px-4">
+                        <span className="font-bold text-stone-900 block text-sm">
+                          {r.customerName}
+                        </span>
+                        <span className="text-stone-500 block text-[11px]">
+                          📞 {r.phone}
+                        </span>
+                        {r.email && (
+                          <span className="text-stone-400 block text-[10px] truncate max-w-[160px]">
+                            ✉️ {r.email}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Party Size */}
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-stone-100 font-extrabold text-stone-800 text-xs">
+                          <span>👥</span>
+                          <span>{r.numberOfPeople} Guests</span>
+                        </span>
+                        <span className="text-[10px] font-bold text-stone-400 capitalize block mt-0.5">
+                          {r.partyType} table
+                        </span>
+                      </td>
+
+                      {/* Notes */}
+                      <td className="py-3.5 px-4 text-stone-600 max-w-xs">
+                        {r.notes ? (
+                          <span className="line-clamp-2 italic text-[11px]">"{r.notes}"</span>
+                        ) : (
+                          <span className="text-stone-300">—</span>
+                        )}
+                      </td>
+
+                      {/* Status Action Dropdown */}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="inline-flex items-center gap-2">
+                          <select
+                            disabled={actionLoading === r._id}
+                            value={r.status}
+                            onChange={(e) => handleStatusChange(r._id, e.target.value)}
+                            className={`px-2.5 py-1 rounded-xl text-xs font-black uppercase border cursor-pointer outline-none transition ${statusBadgeClass}`}
+                          >
+                            <option value="confirmed">Confirmed</option>
+                            <option value="pending">Pending</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* =========================================
+   TAB — DINE-IN SETTINGS (ADMIN & OWNER)
+========================================= */
+
+const DineInSettingsTab = () => {
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  const [formData, setFormData] = useState({
+    enabled: true,
+    openingTime: "11:00",
+    closingTime: "22:00",
+    maxCapacity: 30,
+    slotInterval: 30,
+  });
+
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const data = await getAdminDineInSettings();
+      if (data?.settings) {
+        setSettings(data.settings);
+        setFormData({
+          enabled: Boolean(data.settings.enabled),
+          openingTime: data.settings.openingTime || "11:00",
+          closingTime: data.settings.closingTime || "22:00",
+          maxCapacity: data.settings.maxCapacity || 30,
+          slotInterval: data.settings.slotInterval || 30,
+        });
+      }
+    } catch (err) {
+      console.error("Settings load error:", err);
+      setError(err.message || "Failed to load dine-in settings.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const handleChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setError("");
+    setSuccessMsg("");
+
+    // Front-end sanity check
+    const [oh, om] = formData.openingTime.split(":").map(Number);
+    const [ch, cm] = formData.closingTime.split(":").map(Number);
+    if (oh * 60 + om >= ch * 60 + cm) {
+      return setError("Opening time must be earlier than closing time.");
+    }
+
+    if (parseInt(formData.maxCapacity, 10) <= 0) {
+      return setError("Maximum capacity must be at least 1 person.");
+    }
+
+    try {
+      setSaving(true);
+      const res = await updateAdminDineInSettings(formData);
+      setSuccessMsg(res.message || "Dine-In settings saved successfully!");
+      if (res.settings) {
+        setSettings(res.settings);
+      }
+    } catch (err) {
+      console.error("Save settings error:", err);
+      setError(err.message || "Failed to save settings.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <LoadingBox label="Loading Dine-In configuration..." />;
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      
+      {/* HEADER CARD */}
+      <div className="rounded-3xl bg-white border border-stone-200 p-6 sm:p-8 shadow-sm">
+        <div className="flex items-center justify-between pb-6 border-b border-stone-100">
+          <div>
+            <span className="text-xs font-black uppercase tracking-wider text-amber-600 block">
+              Floor & Hours Management
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-stone-900 mt-0.5">
+              Dine-In Configuration
+            </h2>
+            <p className="text-xs text-stone-500 mt-1">
+              Control Dine-In table booking availability, hours, and seating limit.
+            </p>
+          </div>
+
+          <div className="text-right">
+            <span className={`inline-block px-3 py-1 rounded-full text-xs font-black uppercase border ${
+              formData.enabled
+                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                : "bg-rose-50 text-rose-700 border-rose-300"
+            }`}>
+              {formData.enabled ? "🟢 Dine-In Enabled" : "🔴 Dine-In Disabled"}
+            </span>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mt-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs font-bold text-rose-700">
+            {error}
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="mt-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800">
+            ✅ {successMsg}
+          </div>
+        )}
+
+        {/* SETTINGS FORM */}
+        <form onSubmit={handleSave} className="mt-6 space-y-6">
+          
+          {/* 1. Dine-In Enabled Toggle */}
+          <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 flex items-center justify-between">
+            <div>
+              <span className="text-sm font-black text-stone-900 block">
+                Dine-In Status
+              </span>
+              <p className="text-xs text-stone-500">
+                Turn OFF to temporarily stop accepting table reservations.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleChange("enabled", !formData.enabled)}
+              className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors cursor-pointer ${
+                formData.enabled ? "bg-emerald-600" : "bg-stone-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform shadow ${
+                  formData.enabled ? "translate-x-9" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* 2. Opening & Closing Times */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5">
+                Available From (Opening Time)
+              </label>
+              <input
+                type="time"
+                required
+                value={formData.openingTime}
+                onChange={(e) => handleChange("openingTime", e.target.value)}
+                className="w-full px-4 py-2.5 text-sm font-bold rounded-xl border border-stone-200 bg-stone-50 focus:bg-white outline-none"
+              />
+              <span className="text-[11px] text-stone-400 mt-1 block">
+                24-Hour Format (e.g. 11:00 AM)
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5">
+                Available Until (Closing Time)
+              </label>
+              <input
+                type="time"
+                required
+                value={formData.closingTime}
+                onChange={(e) => handleChange("closingTime", e.target.value)}
+                className="w-full px-4 py-2.5 text-sm font-bold rounded-xl border border-stone-200 bg-stone-50 focus:bg-white outline-none"
+              />
+              <span className="text-[11px] text-stone-400 mt-1 block">
+                24-Hour Format (e.g. 22:00 = 10:00 PM)
+              </span>
+            </div>
+          </div>
+
+          {/* 3. Max Seating Capacity & Slot Interval */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5">
+                Maximum Floor Capacity (Seats)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={500}
+                required
+                value={formData.maxCapacity}
+                onChange={(e) => handleChange("maxCapacity", parseInt(e.target.value, 10) || "")}
+                className="w-full px-4 py-2.5 text-sm font-bold rounded-xl border border-stone-200 bg-stone-50 focus:bg-white outline-none"
+              />
+              <span className="text-[11px] text-stone-400 mt-1 block">
+                Total diners accepted per slot (Default: 30)
+              </span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1.5">
+                Slot Interval (Minutes)
+              </label>
+              <select
+                value={formData.slotInterval}
+                onChange={(e) => handleChange("slotInterval", parseInt(e.target.value, 10))}
+                className="w-full px-4 py-2.5 text-sm font-bold rounded-xl border border-stone-200 bg-stone-50 focus:bg-white outline-none"
+              >
+                <option value={15}>15 Minutes</option>
+                <option value={30}>30 Minutes (Recommended)</option>
+                <option value={45}>45 Minutes</option>
+                <option value={60}>60 Minutes (1 Hour)</option>
+              </select>
+              <span className="text-[11px] text-stone-400 mt-1 block">
+                Spacing between booking timeslots
+              </span>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <div className="pt-4 border-t border-stone-100">
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full py-4 bg-stone-900 hover:bg-stone-800 text-white font-black text-sm rounded-2xl shadow transition disabled:opacity-50"
+            >
+              {saving ? "Saving Settings..." : "Save Dine-In Settings ⚙️"}
+            </button>
+          </div>
+        </form>
+      </div>
+
     </div>
   );
 };
