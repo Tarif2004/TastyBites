@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { registerAdmin, sendOtp, verifyOtp } from "../services/api";
+import { registerAdmin } from "../services/api";
 
 const AdminRegister = () => {
   const navigate = useNavigate();
@@ -13,11 +13,6 @@ const AdminRegister = () => {
     confirmPassword: "",
     captchaAnswer: "",
   });
-
-  const [otp, setOtp] = useState("");
-  const [demoPhoneOtp, setDemoPhoneOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
 
   // Generate Math Captcha
   const [num1, setNum1] = useState(0);
@@ -42,60 +37,10 @@ const AdminRegister = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSendOtp = async () => {
-    if (!formData.phone || formData.phone.length !== 10) {
-      setError("Please enter a valid 10-digit mobile phone number first.");
-      return;
-    }
-    setError("");
-    setLoading(true);
-    try {
-      const data = await sendOtp(formData.phone, "admin_verification");
-      setOtpSent(true);
-      if (data.demoOtp) {
-        setDemoPhoneOtp(data.demoOtp);
-      }
-    } catch (err) {
-      // 429 = OTP already sent and cooldown active (e.g. after page refresh)
-      // Show the OTP input anyway so user can enter the code they already received
-      if (err.status === 429) {
-        setOtpSent(true);
-        setError(`OTP already sent. Please enter it below, or wait ${err.data?.cooldownRemainingSeconds || 60}s to resend.`);
-      } else {
-        setError(err.message || "Failed to send OTP. Please try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (!otp || otp.length !== 6) {
-      setError("Please enter 6-digit OTP code");
-      return;
-    }
-    setError("");
-    setLoading(true);
-    try {
-      await verifyOtp(formData.phone, otp, "admin_verification");
-      setIsPhoneVerified(true);
-      setError("");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccessMsg("");
-
-    if (!isPhoneVerified) {
-      setError("You must verify your mobile number with OTP before submitting.");
-      return;
-    }
 
     const expectedCaptcha = num1 + num2;
     if (parseInt(formData.captchaAnswer, 10) !== expectedCaptcha) {
@@ -206,81 +151,25 @@ const AdminRegister = () => {
           </div>
 
           {/* Phone Number + Swiggy/Zomato OTP Verification */}
-          <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 space-y-2">
-            <label className="block text-xs font-bold text-slate-700 uppercase">
-              Mobile Contact Number Verification
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+              Mobile Contact Number
             </label>
-            <div className="flex gap-2">
-              <input
-                type="tel"
-                name="phone"
-                maxLength={10}
-                value={formData.phone}
-                disabled={isPhoneVerified}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    phone: e.target.value.replace(/\D/g, ""),
-                  }))
-                }
-                placeholder="10-digit mobile number"
-                className="flex-1 px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none"
-                required
-              />
-              {!isPhoneVerified ? (
-                <button
-                  type="button"
-                  onClick={handleSendOtp}
-                  disabled={loading || !formData.phone}
-                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition"
-                >
-                  {otpSent ? "Resend OTP" : "Send OTP"}
-                </button>
-              ) : (
-                <span className="px-4 py-2.5 bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl flex items-center gap-1">
-                  ✓ Verified
-                </span>
-              )}
-            </div>
-
-            {demoPhoneOtp && !isPhoneVerified && (
-              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
-                <span className="text-xs text-amber-800 font-bold block mb-0.5">
-                  Free Smart OTP (Zero Cost):
-                </span>
-                <span className="font-mono text-xl font-black text-rose-600 tracking-[4px]">
-                  {demoPhoneOtp}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setOtp(demoPhoneOtp)}
-                  className="block mx-auto mt-1 px-2.5 py-0.5 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded-md text-[11px] font-extrabold transition"
-                >
-                  Click to Auto-fill Code
-                </button>
-              </div>
-            )}
-
-            {otpSent && !isPhoneVerified && (
-              <div className="flex gap-2 pt-2">
-                <input
-                  type="text"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                  placeholder="Enter 6-digit OTP code"
-                  className="flex-1 px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl font-mono focus:ring-2 focus:ring-rose-500 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={handleVerifyOtp}
-                  disabled={loading}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition"
-                >
-                  Verify Code
-                </button>
-              </div>
-            )}
+            <input
+              type="tel"
+              name="phone"
+              maxLength={10}
+              value={formData.phone}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  phone: e.target.value.replace(/\D/g, ""),
+                }))
+              }
+              placeholder="10-digit mobile number"
+              className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none"
+              required
+            />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -347,7 +236,7 @@ const AdminRegister = () => {
 
           <button
             type="submit"
-            disabled={loading || !isPhoneVerified}
+            disabled={loading}
             className="w-full py-4 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-extrabold rounded-2xl shadow-lg transition duration-200 text-sm uppercase tracking-wider"
           >
             {loading ? "Submitting Application..." : "Submit Admin Application"}

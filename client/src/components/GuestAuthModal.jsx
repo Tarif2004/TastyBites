@@ -1,18 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import GoogleLoginButton from "./GoogleLoginButton";
-import { loginUser, sendOtp, verifyOtp, registerUser } from "../services/api";
+import { loginUser, registerUser } from "../services/api";
 
 const GuestAuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
   const navigate = useNavigate();
   const [tab, setTab] = useState("user"); // 'user' or 'admin'
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [demoPhoneOtp, setDemoPhoneOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -24,55 +19,6 @@ const GuestAuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
     setLoading(true);
     try {
       const data = await loginUser({ email, password });
-      localStorage.setItem("token", data.token);
-      if (onAuthSuccess) onAuthSuccess(data.user);
-      onClose();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSendOtp = async () => {
-    if (!phone || phone.length !== 10) {
-      setError("Please enter a valid 10-digit mobile number");
-      return;
-    }
-    setError("");
-    setLoading(true);
-    try {
-      const data = await sendOtp(phone, "user_verification");
-      setOtpSent(true);
-      if (data.demoOtp) {
-        setDemoPhoneOtp(data.demoOtp);
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtpAndRegister = async (e) => {
-    e.preventDefault();
-    if (!otp || otp.length !== 6) {
-      setError("Please enter 6-digit OTP code");
-      return;
-    }
-    setError("");
-    setLoading(true);
-    try {
-      await verifyOtp(phone, otp, "user_verification");
-      const randomPassword = `Pass_${Date.now()}`;
-      const userEmail = `${phone}@tastybites.guest`;
-      const data = await registerUser({
-        name: name || `Diner ${phone.slice(-4)}`,
-        email: userEmail,
-        phone,
-        password: randomPassword,
-        confirmPassword: randomPassword,
-      });
       localStorage.setItem("token", data.token);
       if (onAuthSuccess) onAuthSuccess(data.user);
       onClose();
@@ -138,82 +84,6 @@ const GuestAuthModal = ({ isOpen, onClose, onAuthSuccess }) => {
 
           {tab === "user" ? (
             <div className="space-y-4">
-              {/* Quick Mobile OTP Sign In */}
-              <div className="border border-slate-200 rounded-2xl p-4 bg-amber-50/40">
-                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <span>📱</span> Fast Phone OTP Verification
-                </h3>
-                {!otpSent ? (
-                  <div className="flex gap-2">
-                    <input
-                      type="tel"
-                      placeholder="10-digit mobile number"
-                      maxLength={10}
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                      className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSendOtp}
-                      disabled={loading}
-                      className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition"
-                    >
-                      Send OTP
-                    </button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleVerifyOtpAndRegister} className="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Your Name (Optional)"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-slate-300 rounded-xl outline-none"
-                    />
-
-                    {demoPhoneOtp && (
-                      <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-center">
-                        <span className="text-xs text-amber-800 font-bold block mb-0.5">
-                          Verification Code: <span className="font-mono text-rose-600 font-black tracking-widest">{demoPhoneOtp}</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setOtp(demoPhoneOtp)}
-                          className="px-2 py-0.5 bg-amber-200 hover:bg-amber-300 text-amber-900 rounded text-[11px] font-extrabold cursor-pointer"
-                        >
-                          Auto-fill Code
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Enter 6-digit OTP"
-                        maxLength={6}
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                        className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none font-mono"
-                      />
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition"
-                      >
-                        Verify & Order
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
-
-              <div className="relative flex py-1 items-center">
-                <div className="flex-grow border-t border-slate-200"></div>
-                <span className="flex-shrink mx-3 text-slate-400 text-xs font-semibold uppercase">Or login with</span>
-                <div className="flex-grow border-t border-slate-200"></div>
-              </div>
-
               {/* Google Sign-in */}
               <GoogleLoginButton
                 onSuccess={(data) => {

@@ -11,8 +11,6 @@ import {
 import {
   sendEmailOtpController,
   verifyEmailOtpController,
-  sendOtp,
-  verifyOtp,
 } from "../controllers/otpController.js";
 
 import protect from "../middleware/authMiddleware.js";
@@ -34,10 +32,6 @@ router.post("/google", googleAuth);
 /* Email OTP endpoints */
 router.post("/email-otp/send", sendEmailOtpController);
 router.post("/email-otp/verify", verifyEmailOtpController);
-
-/* Mobile OTP endpoints */
-router.post("/otp/send", sendOtp);
-router.post("/otp/verify", verifyOtp);
 
 /* Current user session */
 router.get("/me", protect, getCurrentUser);
