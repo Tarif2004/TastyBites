@@ -7,10 +7,14 @@ import { v2 as cloudinary } from "cloudinary";
    STORAGE CONFIGURATION
 ========================================= */
 
-// Ensure local uploads directory exists
+// Ensure local uploads directory exists (gracefully skip on read-only FS like Vercel)
 const UPLOADS_DIR = path.resolve("uploads", "menu");
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+try {
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  }
+} catch {
+  // On Vercel (read-only FS), local disk storage is unavailable — Cloudinary will be used instead
 }
 
 // Configure Cloudinary if environment variables are set
