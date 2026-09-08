@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getMenuItems } from "../services/api";
+import { getMenuItems, getActiveDiscounts } from "../services/api";
 import RetroButton from "../components/RetroButton";
 import SectionTitle from "../components/SectionTitle";
 import FoodCard from "../components/FoodCard";
@@ -18,6 +18,8 @@ const categories = [
 const Home = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [offers, setOffers] = useState([]);
+  const [offersLoading, setOffersLoading] = useState(true);
 
   useEffect(() => {
     const loadMenu = async () => {
@@ -30,7 +32,21 @@ const Home = () => {
         setLoading(false);
       }
     };
+
+    const loadOffers = async () => {
+      try {
+        const data = await getActiveDiscounts();
+        setOffers(data.discounts || []);
+      } catch {
+        // Silently ignore — don't block the page if offers fail
+        setOffers([]);
+      } finally {
+        setOffersLoading(false);
+      }
+    };
+
     loadMenu();
+    loadOffers();
   }, []);
 
   const featuredItems = items
@@ -188,6 +204,31 @@ const Home = () => {
         </div>
       </section>
 
+      {/* OFFERS & DEALS SECTION — shown only when there are active discounts */}
+      {(offersLoading || offers.length > 0) && (
+        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <SectionTitle
+            eyebrow="🏷️ Limited Time"
+            title="Diner Deals & Offers"
+            description="Use these exclusive promo codes at checkout to save on your next order."
+          />
+
+          {offersLoading ? (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 mt-10">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="h-40 animate-pulse rounded-3xl bg-stone-100 border border-stone-200" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 mt-10">
+              {offers.map((offer) => (
+                <CouponCard key={offer._id} offer={offer} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       {/* DINE IN CTA SECTION */}
       <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500/10 via-rose-500/10 to-stone-100 border border-amber-200/80 p-8 sm:p-12 shadow-sm">
@@ -250,3 +291,86 @@ const Home = () => {
 };
 
 export default Home;
+
+/* =========================================
+   COUPON CARD — User-facing deal display
+========================================= */
+
+const CouponCard = ({ offer }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(offer.code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const expiresOn = new Date(offer.endDate).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl bg-white border-2 border-dashed border-amber-300 p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition group">
+      {/* Top strip */}
+      <div
+        className={`absolute top-0 left-0 right-0 h-1.5 ${
+          offer.type === "percentage" ? "bg-rose-500" : "bg-amber-500"
+        }`}
+      />
+
+      {/* Offer Value */}
+      <div className="mb-4">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 border border-rose-200 px-3 py-0.5 text-[11px] font-black uppercase tracking-wider text-rose-700 mb-3">
+          🏷️ Limited Time Offer
+        </span>
+        <h3 className="text-2xl font-black text-stone-900 tracking-tight leading-tight">
+          {offer.type === "percentage"
+            ? `${offer.value}% OFF`
+            : `₹${offer.value} FLAT OFF`}
+        </h3>
+        <p className="text-xs font-semibold text-stone-700 mt-1">{offer.name}</p>
+        {offer.description && (
+          <p className="text-[11px] text-stone-400 mt-1 line-clamp-2">{offer.description}</p>
+        )}
+      </div>
+
+      {/* Fine print */}
+      <div className="text-[11px] text-stone-500 space-y-1 mb-4 border-t border-dashed border-stone-200 pt-3">
+        {offer.minimumOrderAmount > 0 && (
+          <p>Min. order: <span className="font-bold text-stone-700">₹{offer.minimumOrderAmount}</span></p>
+        )}
+        {offer.type === "percentage" && offer.maximumDiscountAmount && (
+          <p>Max savings: <span className="font-bold text-stone-700">₹{offer.maximumDiscountAmount}</span></p>
+        )}
+        <p>Expires: <span className="font-bold text-stone-700">{expiresOn}</span></p>
+      </div>
+
+      {/* Coupon code + copy button */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1 rounded-xl bg-stone-900 px-4 py-2.5 text-center font-mono text-sm font-black tracking-widest text-amber-300 select-all">
+          {offer.code}
+        </div>
+        <button
+          onClick={handleCopy}
+          className={`shrink-0 rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-wider transition cursor-pointer ${
+            copied
+              ? "bg-emerald-500 text-white"
+              : "bg-stone-900 text-white hover:bg-rose-600"
+          }`}
+        >
+          {copied ? "Copied ✓" : "Copy"}
+        </button>
+      </div>
+
+      <Link
+        to="/checkout"
+        className="mt-3 block text-center text-[11px] font-bold text-rose-600 hover:text-rose-700 underline underline-offset-2"
+      >
+        Apply at Checkout →
+      </Link>
+    </div>
+  );
+};
