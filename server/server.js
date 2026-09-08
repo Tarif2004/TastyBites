@@ -12,8 +12,11 @@ import menuRoutes from "./routes/menuRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
+import path from "path";
 import dineInRoutes from "./routes/dineInRoutes.js";
 import adminDineInRoutes from "./routes/adminDineInRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
+import discountRoutes from "./routes/discountRoutes.js";
 
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 
@@ -143,6 +146,8 @@ app.use(async (req, res, next) => {
    ROUTES
 ========================================= */
 
+app.use("/uploads", express.static(path.resolve("uploads")));
+
 app.use("/api/admin/dashboard", dashboardRoutes);
 
 app.use("/api/auth", authRoutes);
@@ -152,6 +157,8 @@ app.use("/api/users", userRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/dine-in", dineInRoutes);
 app.use("/api/admin/dine-in", adminDineInRoutes);
+app.use("/api/upload", uploadRoutes);
+app.use("/api/discounts", discountRoutes);
 
 /* =========================================
    BASIC ROUTES

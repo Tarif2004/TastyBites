@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import MenuItem from "../models/MenuItem.js";
+import { deleteImage } from "../services/imageUploadService.js";
 
 /* =========================================
    GET ALL MENU ITEMS
@@ -253,6 +254,20 @@ export const updateMenuItem = async (req, res) => {
       updates.image = updates.image.trim();
     }
 
+    // Check existing item to clean up old image if replaced
+    const existingItem = await MenuItem.findById(id);
+
+    if (!existingItem) {
+      return res.status(404).json({
+        success: false,
+        message: "Menu item not found",
+      });
+    }
+
+    if (updates.image && existingItem.image && updates.image !== existingItem.image) {
+      await deleteImage(existingItem.image);
+    }
+
     const menuItem =
       await MenuItem.findByIdAndUpdate(
         id,
@@ -262,13 +277,6 @@ export const updateMenuItem = async (req, res) => {
           runValidators: true,
         }
       ).lean();
-
-    if (!menuItem) {
-      return res.status(404).json({
-        success: false,
-        message: "Menu item not found",
-      });
-    }
 
     return res.status(200).json({
       success: true,
@@ -313,6 +321,11 @@ export const deleteMenuItem = async (req, res) => {
         success: false,
         message: "Menu item not found",
       });
+    }
+
+    // Clean up associated image file if any
+    if (deletedItem.image) {
+      await deleteImage(deletedItem.image);
     }
 
     return res.status(200).json({

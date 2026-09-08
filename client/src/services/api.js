@@ -7,8 +7,10 @@ const API_URL =
 export const apiRequest = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");
 
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+
   const headers = {
-    ...(options.body
+    ...(options.body && !isFormData
       ? {
           "Content-Type": "application/json",
         }
@@ -214,4 +216,68 @@ export const updateAdminDineInReservationStatus = (id, status) =>
   apiRequest(`/admin/dine-in/reservations/${id}/status`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
+  });
+
+// ===============================
+// IMAGE UPLOAD (ADMIN / OWNER)
+// ===============================
+
+export const uploadImage = (file) => {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  return apiRequest("/upload/image", {
+    method: "POST",
+    body: formData,
+  });
+};
+
+// ===============================
+// DISCOUNTS (CUSTOMER & OWNER)
+// ===============================
+
+// Customer: Check & apply coupon
+export const applyDiscount = (data) =>
+  apiRequest("/discounts/apply", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+// Public: Get active offers list
+export const getActiveDiscounts = () => apiRequest("/discounts/active");
+
+// Owner Only: List all discounts with filters
+export const getOwnerDiscounts = (params = {}) => {
+  const query = new URLSearchParams();
+  if (params.status) query.append("status", params.status);
+  if (params.search) query.append("search", params.search);
+  const qStr = query.toString();
+  return apiRequest(`/discounts/owner${qStr ? `?${qStr}` : ""}`);
+};
+
+// Owner Only: Create new discount
+export const createOwnerDiscount = (discountData) =>
+  apiRequest("/discounts/owner", {
+    method: "POST",
+    body: JSON.stringify(discountData),
+  });
+
+// Owner Only: Update discount
+export const updateOwnerDiscount = (id, discountData) =>
+  apiRequest(`/discounts/owner/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(discountData),
+  });
+
+// Owner Only: Toggle discount active status
+export const toggleOwnerDiscountStatus = (id, active) =>
+  apiRequest(`/discounts/owner/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ active }),
+  });
+
+// Owner Only: Delete discount
+export const deleteOwnerDiscount = (id) =>
+  apiRequest(`/discounts/owner/${id}`, {
+    method: "DELETE",
   });
