@@ -2,11 +2,6 @@ import mongoose from "mongoose";
 
 import Order from "../models/Order.js";
 import MenuItem from "../models/MenuItem.js";
-import Discount from "../models/Discount.js";
-import {
-  calculateDiscountAmount,
-  validateDiscountEligibility,
-} from "./discountController.js";
 
 /* =========================================
    CREATE ORDER
@@ -20,7 +15,6 @@ export const createOrder = async (req, res) => {
       customer,
       location,
       paymentMethod = "COD",
-      couponCode,
     } = req.body;
 
     /* ================================
@@ -181,37 +175,11 @@ export const createOrder = async (req, res) => {
     }
 
     /* ================================
-       DISCOUNT CALCULATION (BACKEND ENFORCED)
-    ================================= */
-
-    let discountAmount = 0;
-    let appliedCouponCode = "";
-    let matchedDiscount = null;
-
-    if (couponCode && typeof couponCode === "string" && couponCode.trim()) {
-      const normalizedCode = couponCode.trim().toUpperCase();
-      matchedDiscount = await Discount.findOne({ code: normalizedCode });
-
-      if (matchedDiscount) {
-        const validation = validateDiscountEligibility(
-          matchedDiscount,
-          req.user._id,
-          subtotal
-        );
-
-        if (validation.valid) {
-          discountAmount = calculateDiscountAmount(matchedDiscount, subtotal);
-          appliedCouponCode = matchedDiscount.code;
-        }
-      }
-    }
-
-    /* ================================
        DELIVERY FEE & FINAL TOTAL
     ================================= */
 
-    const deliveryFee = 40;
-    const total = Math.max(0, subtotal - discountAmount) + deliveryFee;
+    const deliveryFee = subtotal >= 500 ? 0 : 40;
+    const total = subtotal + deliveryFee;
 
     /* ================================
        CREATE ORDER
@@ -222,8 +190,6 @@ export const createOrder = async (req, res) => {
       items: orderItems,
       subtotal,
       deliveryFee,
-      discountAmount,
-      couponCode: appliedCouponCode,
       total,
       customer: {
         name: customer.name.trim(),
@@ -239,20 +205,6 @@ export const createOrder = async (req, res) => {
       paymentMethod,
       status: "Pending",
     });
-
-    // Record coupon redemption
-    if (matchedDiscount && appliedCouponCode) {
-      await Discount.findByIdAndUpdate(matchedDiscount._id, {
-        $inc: { usageCount: 1 },
-        $push: {
-          usedBy: {
-            user: req.user._id,
-            orderId: order._id,
-            usedAt: new Date(),
-          },
-        },
-      });
-    }
 
     return res.status(201).json({
       success: true,

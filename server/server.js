@@ -16,7 +16,6 @@ import path from "path";
 import dineInRoutes from "./routes/dineInRoutes.js";
 import adminDineInRoutes from "./routes/adminDineInRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
-import discountRoutes from "./routes/discountRoutes.js";
 
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 
@@ -158,7 +157,6 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/dine-in", dineInRoutes);
 app.use("/api/admin/dine-in", adminDineInRoutes);
 app.use("/api/upload", uploadRoutes);
-app.use("/api/discounts", discountRoutes);
 
 /* =========================================
    BASIC ROUTES
